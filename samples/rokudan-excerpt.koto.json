@@ -1,0 +1,172 @@
+{
+  "format": "koto-score",
+  "version": 1,
+  "meta": {
+    "title": "六段の調",
+    "composer": "八橋検校 作曲",
+    "tuning": ["箏 低平調子\t壱", "三絃 本調子\t弐", "尺八\tレ"],
+    "memo": "データ形式の確認用の抜粋（初段冒頭4小節、二段冒頭1小節、終結2小節）。未校正。"
+  },
+  "settings": {
+    "beatsPerMeasure": "4",
+    "meterLabel": "4/4",
+    "measuresPerSystem": 4,
+    "systemsPerPage": 7
+  },
+  "parts": [{ "id": "koto", "weight": "bold" }],
+  "tracks": [],
+  "measures": [
+    {
+      "id": "m1",
+      "marks": [{ "kind": "section", "text": "初段" }],
+      "content": { "koto": {
+        "events": [
+          { "id": "m1e1", "type": "note", "strings": [{ "n": 5 }], "lines": 0, "dots": 0, "sup": ["ヒ"] },
+          { "id": "m1e2", "type": "rest", "lines": 0, "dots": 0 },
+          { "id": "m1e3", "type": "note", "strings": [{ "n": 3 }], "lines": 0, "dots": 0 },
+          { "id": "m1e4", "type": "note", "strings": [{ "n": 1 }], "lines": 0, "dots": 0, "prefix": "kaki" }
+        ],
+        "shoka": [
+          { "at": "0", "text": "テ" },
+          { "at": "1/2", "text": "ー" },
+          { "at": "1", "text": "ン" },
+          { "at": "2", "text": "トン" },
+          { "at": "3", "text": "シャン" }
+        ]
+      } }
+    },
+    {
+      "id": "m2",
+      "content": { "koto": {
+        "events": [
+          { "id": "m2e1", "type": "rest", "lines": 0, "dots": 0 },
+          { "id": "m2e2", "type": "note", "strings": [{ "n": 3 }], "lines": 1, "dots": 0, "prefix": "wari", "sup": ["2"] },
+          { "id": "m2e3", "type": "note", "strings": [{ "n": 3 }], "lines": 1, "dots": 0, "prefix": "wari", "sup": ["3"], "joinPrev": true },
+          { "id": "m2e4", "type": "note", "strings": [{ "n": 8 }], "lines": 1, "dots": 1, "joinPrev": true },
+          { "id": "m2e5", "type": "note", "strings": [{ "n": 7 }], "lines": 2, "dots": 0, "joinPrev": true },
+          { "id": "m2e6", "type": "note", "strings": [{ "n": 6 }], "lines": 1, "dots": 0, "joinPrev": true },
+          { "id": "m2e7", "type": "note", "strings": [{ "n": 7 }], "lines": 1, "dots": 0, "joinPrev": true, "sup": ["オ"] }
+        ],
+        "shoka": [
+          { "at": "1", "text": "シャ" },
+          { "at": "3/2", "text": "シャ" },
+          { "at": "2", "text": "コー" },
+          { "at": "11/4", "text": "ロ" },
+          { "at": "3", "text": "リ" },
+          { "at": "7/2", "text": "チイ" }
+        ]
+      } }
+    },
+    {
+      "id": "m3",
+      "content": { "koto": {
+        "events": [
+          { "id": "m3e1", "type": "note", "strings": [{ "n": 1 }], "lines": 0, "dots": 0, "sup": ["3"] },
+          { "id": "m3e2", "type": "note", "strings": [{ "n": 5 }], "lines": 1, "dots": 1 },
+          { "id": "m3e3", "type": "note", "strings": [{ "n": 4 }], "lines": 2, "dots": 0, "joinPrev": true },
+          { "id": "m3e4", "type": "note", "strings": [{ "n": 3 }], "lines": 0, "dots": 0 },
+          { "id": "m3e5", "type": "note", "strings": [{ "n": 1 }], "lines": 0, "dots": 0, "prefix": "kaki" }
+        ],
+        "shoka": [
+          { "at": "0", "text": "トン" },
+          { "at": "1", "text": "コー" },
+          { "at": "7/4", "text": "ロ" },
+          { "at": "2", "text": "リン" },
+          { "at": "3", "text": "シャン" }
+        ]
+      } }
+    },
+    {
+      "id": "m4",
+      "break": "system",
+      "content": { "koto": {
+        "events": [
+          { "id": "m4e1", "type": "note", "strings": [{ "n": 9 }], "lines": 0, "dots": 0, "sup": ["ヒ"] },
+          { "id": "m4e2", "type": "note", "strings": [{ "n": 8 }], "lines": 1, "dots": 0 },
+          { "id": "m4e3", "type": "note", "strings": [{ "n": 7 }], "lines": 1, "dots": 0, "joinPrev": true },
+          { "id": "m4e4", "type": "note", "strings": [{ "n": 8 }], "lines": 1, "dots": 1, "joinPrev": true },
+          { "id": "m4e5", "type": "note", "strings": [{ "n": 7 }], "lines": 2, "dots": 0, "joinPrev": true },
+          { "id": "m4e6", "type": "note", "strings": [{ "n": 6 }], "lines": 1, "dots": 0, "joinPrev": true },
+          { "id": "m4e7", "type": "note", "strings": [{ "n": 7 }], "lines": 1, "dots": 0, "joinPrev": true, "sup": ["オ"] }
+        ],
+        "shoka": [
+          { "at": "0", "text": "ツン" },
+          { "at": "1", "text": "テ" },
+          { "at": "3/2", "text": "ツ" },
+          { "at": "2", "text": "コー" },
+          { "at": "11/4", "text": "ロ" },
+          { "at": "3", "text": "リ" },
+          { "at": "7/2", "text": "チイ" }
+        ]
+      } }
+    },
+    {
+      "id": "m5",
+      "marks": [{ "kind": "section", "text": "二段" }],
+      "content": { "koto": {
+        "events": [
+          { "id": "m5e1", "type": "rest", "lines": 0, "dots": 0 },
+          { "id": "m5e2", "type": "note", "strings": [{ "n": 7 }], "lines": 0, "dots": 0 },
+          { "id": "m5e3", "type": "note", "strings": [{ "n": 8 }], "lines": 1, "dots": 1 },
+          { "id": "m5e4", "type": "note", "strings": [{ "n": 7 }], "lines": 2, "dots": 0, "joinPrev": true },
+          { "id": "m5e5", "type": "note", "strings": [{ "n": 6 }], "lines": 1, "dots": 0, "joinPrev": true },
+          { "id": "m5e6", "type": "note", "strings": [{ "n": 7 }], "lines": 1, "dots": 0, "joinPrev": true, "sup": ["オ"] }
+        ],
+        "shoka": [
+          { "at": "1", "text": "ツン" },
+          { "at": "2", "text": "コー" },
+          { "at": "11/4", "text": "ロ" },
+          { "at": "3", "text": "リ" },
+          { "at": "7/2", "text": "チイ" }
+        ]
+      } },
+      "ossia": [
+        {
+          "part": "koto",
+          "label": "或は",
+          "at": "2",
+          "events": [
+            { "id": "m5o1", "type": "note", "strings": [{ "n": 8 }], "lines": 1, "dots": 0 },
+            { "id": "m5o2", "type": "note", "strings": [{ "n": 7 }], "lines": 1, "dots": 0, "joinPrev": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m6",
+      "marks": [{ "kind": "tempo", "text": "徐", "at": "2" }],
+      "content": { "koto": {
+        "events": [
+          { "id": "m6e1", "type": "note", "strings": [{ "n": 8 }], "lines": 0, "dots": 0 },
+          { "id": "m6e2", "type": "rest", "lines": 0, "dots": 0 },
+          { "id": "m6e3", "type": "note", "strings": [{ "n": 13 }], "lines": 0, "dots": 0 },
+          { "id": "m6e4", "type": "rest", "lines": 0, "dots": 0 }
+        ],
+        "shoka": [{ "at": "0", "text": "テン" }]
+      } }
+    },
+    {
+      "id": "m7",
+      "barline": "final",
+      "content": { "koto": {
+        "events": [
+          { "id": "m7e1", "type": "note", "strings": [{ "n": 6 }], "lines": 0, "dots": 0, "sup": ["ヒ"], "above": ["fermata"] },
+          { "id": "m7e2", "type": "rest", "lines": 0, "dots": 0 },
+          { "id": "m7e3", "type": "note", "strings": [{ "n": 1 }, { "n": 5 }], "chord": "arc", "lines": 0, "dots": 0 },
+          { "id": "m7e4", "type": "rest", "lines": 0, "dots": 0 }
+        ],
+        "shoka": [
+          { "at": "0", "text": "リ" },
+          { "at": "1/2", "text": "ー" },
+          { "at": "1", "text": "ン" },
+          { "at": "2", "text": "シャ" },
+          { "at": "5/2", "text": "ー" },
+          { "at": "3", "text": "ン" }
+        ]
+      } }
+    }
+  ],
+  "spans": [
+    { "id": "s1", "kind": "wave", "part": "koto", "from": "m6e3", "to": "m7e1", "startText": "サ", "endText": "ラ" }
+  ]
+}

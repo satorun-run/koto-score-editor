@@ -1,0 +1,107 @@
+{
+  "format": "koto-score",
+  "version": 1,
+  "meta": {
+    "title": "松竹梅",
+    "composer": "三津橋勾当 作曲",
+    "tuning": ["低半雲井調子", "平調子の八を半音下げ", "九を一音上げる", "箏\t弐", "三絃\t壱", "琴古\tリ", "都山\tハ"],
+    "memo": "データ形式の確認用の抜粋（冒頭4小節と合せ爪の1小節）。補助行の拍位置は概略。未校正。"
+  },
+  "settings": {
+    "beatsPerMeasure": "4",
+    "measuresPerSystem": 4,
+    "systemsPerPage": 6
+  },
+  "parts": [{ "id": "koto", "weight": "bold" }],
+  "tracks": [
+    { "id": "uta", "name": "歌詞", "kind": "lyrics", "below": "koto" },
+    { "id": "fushi", "name": "歌の節", "kind": "pitch", "below": "koto" }
+  ],
+  "measures": [
+    {
+      "id": "m1",
+      "beats": "2",
+      "content": { "koto": { "events": [
+        { "id": "m1e1", "type": "rest", "lines": 0, "dots": 0 },
+        { "id": "m1e2", "type": "rest", "lines": 0, "dots": 0 }
+      ] } },
+      "aux": {
+        "uta": [{ "at": "1", "text": "た" }],
+        "fushi": [
+          { "at": "1", "notes": [{ "n": 6, "press": 1 }] },
+          { "at": "5/4", "notes": [{ "n": 7 }], "extend": true }
+        ]
+      }
+    },
+    {
+      "id": "m2",
+      "content": { "koto": { "events": [
+        { "id": "m2e1", "type": "note", "strings": [{ "n": 7 }], "lines": 0, "dots": 0 },
+        { "id": "m2e2", "type": "rest", "lines": 0, "dots": 0 },
+        { "id": "m2e3", "type": "note", "strings": [{ "n": 6, "press": 1 }], "lines": 0, "dots": 0 },
+        { "id": "m2e4", "type": "rest", "lines": 0, "dots": 0 }
+      ] } },
+      "aux": {
+        "uta": [{ "at": "1", "text": "ち" }],
+        "fushi": [
+          { "at": "1", "notes": [{ "n": 6, "press": 1 }] },
+          { "at": "5/4", "notes": [{ "n": 7 }], "extend": true }
+        ]
+      }
+    },
+    {
+      "id": "m3",
+      "content": { "koto": { "events": [
+        { "id": "m3e1", "type": "note", "strings": [{ "n": 7 }], "lines": 0, "dots": 0 },
+        { "id": "m3e2", "type": "rest", "lines": 0, "dots": 0 },
+        { "id": "m3e3", "type": "note", "strings": [{ "n": 8 }], "lines": 0, "dots": 0 },
+        { "id": "m3e4", "type": "rest", "lines": 0, "dots": 0 }
+      ] } },
+      "aux": {
+        "uta": [{ "at": "3", "text": "わ" }],
+        "fushi": [
+          { "at": "1", "notes": [{ "n": 6, "press": 1 }] },
+          { "at": "3/2", "notes": [{ "n": 7 }], "extend": true },
+          { "at": "3", "notes": [{ "n": 8 }] },
+          { "at": "7/2", "notes": [{ "n": 9 }], "extend": true }
+        ]
+      }
+    },
+    {
+      "id": "m4",
+      "break": "system",
+      "content": { "koto": { "events": [
+        { "id": "m4e1", "type": "note", "strings": [{ "n": 9 }], "lines": 0, "dots": 2 },
+        { "id": "m4e2", "type": "note", "strings": [{ "n": 8, "press": 1 }], "lines": 2, "dots": 0, "sup": ["ツ"] },
+        { "id": "m4e3", "type": "note", "strings": [{ "n": 7 }], "lines": 0, "dots": 0 },
+        { "id": "m4e4", "type": "rest", "lines": 0, "dots": 0 }
+      ] } },
+      "aux": {
+        "uta": [{ "at": "7/2", "text": "た" }],
+        "fushi": [
+          { "at": "1/2", "notes": [{ "n": 8 }] },
+          { "at": "1", "notes": [{ "n": 7 }], "extend": true },
+          { "at": "7/2", "notes": [{ "n": 7 }] }
+        ]
+      }
+    },
+    {
+      "id": "m5",
+      "barline": "double",
+      "content": { "koto": { "events": [
+        { "id": "m5e1", "type": "note", "strings": [{ "n": 1 }, { "n": 5 }], "chord": "arc", "lines": 0, "dots": 0 },
+        { "id": "m5e2", "type": "rest", "lines": 0, "dots": 0 },
+        { "id": "m5e3", "type": "rest", "lines": 0, "dots": 0 },
+        { "id": "m5e4", "type": "rest", "lines": 0, "dots": 0 }
+      ] } },
+      "aux": {
+        "uta": [{ "at": "2", "text": "か" }],
+        "fushi": [
+          { "at": "2", "notes": [{ "n": 6, "press": 2 }], "extend": true },
+          { "at": "7/2", "notes": [{ "n": 7 }], "extend": true }
+        ]
+      }
+    }
+  ],
+  "spans": []
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+out
+
+# 出版物のスキャン画像と、そこから起こしたデータは公開しない（このPCでだけ使う）
+scans/
+glyphs/
+drafts/*.draft.txt
+drafts/*.koto.json
+samples/ikuyamakawa-excerpt.koto.json

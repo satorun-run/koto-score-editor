@@ -1,0 +1,2 @@
+# start.bat は ANSI（Shift-JIS）・CRLF で保存している。変換させない
+start.bat -text
