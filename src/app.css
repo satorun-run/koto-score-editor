@@ -18,6 +18,7 @@ body {
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button {
+  white-space: nowrap;
   padding: 3px 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -38,6 +39,8 @@ input, select, textarea {
 .app { display: flex; flex-direction: column; height: 100%; }
 .toolbar, .status {
   display: flex;
+  /* 画面が狭いとき（iPad など）は、ボタンの中で折り返さず、段を増やして並べる */
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
