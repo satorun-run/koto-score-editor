@@ -774,7 +774,8 @@ function drawEvent(
     }
   } else if (e.type === "sign") {
     const custom = customGlyph(st, e.sign, role);
-    prims.push(custom ? placeGlyph(custom, layer, cx, baseY, size, sx) : glyph(layer, cx, baseY, e.sign, size, role, sx));
+    const bold = boldFor(st, size, sx);
+    prims.push(custom ? placeGlyph(custom, layer, cx, baseY, size, sx, bold) : glyph(layer, cx, baseY, e.sign, size, role, sx, bold));
   } else if (e.strings.length <= 1) {
     const s = e.strings[0];
     prims.push(s ? stringPrim(st, layer, cx, baseY, s.n, size, role, sx) : glyph(layer, cx, baseY, "？", size, role, sx));
@@ -876,17 +877,46 @@ function drawEvent(
   return { cx, left, right, top, baseY, markTop };
 }
 
-function glyph(layer: string, cx: number, bottom: number, text: string, size: number, font: FontRole, sx: number): Prim {
+function glyph(layer: string, cx: number, bottom: number, text: string, size: number, font: FontRole, sx: number, bold: Bold = NO_BOLD): Prim {
   return {
     t: "text", layer, x: cx, y: bottom - size * DESCENT, text, size, font, anchor: "middle",
     ...(Math.abs(sx - 1) > 0.001 ? { scaleX: sx } : {}),
+    ...(bold.all > 0.005 ? { bold: bold.all } : {}),
+    ...(bold.x > 0.005 ? { boldX: bold.x } : {}),
   };
+}
+
+/** 字を太らせる量。all は輪郭全体に足す線の太さ、x は横方向にだけ足す幅（どちらも mm） */
+interface Bold {
+  all: number;
+  x: number;
+}
+const NO_BOLD: Bold = { all: 0, x: 0 };
+
+/** 字の線の太さの、字の大きさに対するおおよその比（太い書体・元譜の字形で 0.11 前後） */
+const STEM_RATIO = 0.11;
+
+/**
+ * 小さく描く字を太らせる量。
+ * 字を縮めると、縦に縮めた分だけ横の線が、横に縮めた分だけ縦の線が細くなる。
+ * 短い音符は横の縮みのほうが大きいので、縦の線のほうが細くなる。そこで、
+ *   ・輪郭全体には、縦の縮みで細くなった分（横の線の分）を足し、
+ *   ・横方向にだけ、横の縮みで細くなった分との差（縦の線の分）をさらに足す。
+ * sx は字に掛かる横の倍率（縦に対する比）。shortBold はどれだけ補うかの割合
+ */
+function boldFor(st: Style, size: number, sx: number): Bold {
+  const k = (st.shortBold / 100) * STEM_RATIO;
+  const all = Math.max(0, k * (st.noteSize - size));
+  const horizontal = Math.max(0, k * (st.noteSize - size * sx));
+  // 輪郭全体に足した線は、横方向には sx 倍の太さになる。足りない分を横方向にだけ足す
+  return { all, x: Math.max(0, horizontal - all * sx) };
 }
 
 /** 絃名1字。独自字形が登録されていればその形で、なければフォントの文字で描く */
 function stringPrim(st: Style, layer: string, cx: number, bottom: number, n: number, size: number, role: FontRole, sx: number): Prim {
   const custom = customGlyph(st, `${n}`, role);
-  return custom ? placeGlyph(custom, layer, cx, bottom, size, sx) : glyph(layer, cx, bottom, stringGlyph(st, n), size, role, sx);
+  const bold = boldFor(st, size, sx);
+  return custom ? placeGlyph(custom, layer, cx, bottom, size, sx, bold) : glyph(layer, cx, bottom, stringGlyph(st, n), size, role, sx, bold);
 }
 
 /** 登録されている独自字形。使う範囲の外（細い書体のパートなど）なら undefined */
@@ -895,12 +925,12 @@ function customGlyph(st: Style, key: string, role: FontRole): GlyphDef | undefin
 }
 
 /** 独自字形を、枠の高さが size になるように置く。(cx, bottom) が枠の下辺の中央 */
-function placeGlyph(def: GlyphDef, layer: string, cx: number, bottom: number, size: number, sx: number): Prim {
+function placeGlyph(def: GlyphDef, layer: string, cx: number, bottom: number, size: number, sx: number, bold: Bold = NO_BOLD): Prim {
   const [bx, by, bw, bh] = def.box;
   const k = size / bh;
   return {
     t: "path", layer, x: cx - (bw * k * sx) / 2, y: bottom - size, d: def.d, fill: true,
-    place: { sx: k * sx, sy: k, ox: bx, oy: by },
+    place: { sx: k * sx, sy: k, ox: bx, oy: by, ...(bold.all > 0.005 ? { bold: bold.all } : {}), ...(bold.x > 0.005 ? { boldX: bold.x } : {}) },
   };
 }
 

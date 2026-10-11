@@ -54,11 +54,14 @@ function primSvg(p: Prim, st: Style): string {
   switch (p.t) {
     case "text": {
       const font = p.font === "main" ? st.fontMain : st.fontSub;
-      const attrs = `font-family="${esc(font.family)}" font-weight="${font.weight}" font-size="${n(p.size)}" text-anchor="${p.anchor}" fill="#000"`;
-      if (p.scaleX !== undefined) {
-        return `<text transform="translate(${n(p.x)} ${n(p.y)}) scale(${n(p.scaleX)} 1)" ${attrs}>${esc(p.text)}</text>`;
-      }
-      return `<text x="${n(p.x)}" y="${n(p.y)}" ${attrs}>${esc(p.text)}</text>`;
+      // 太らせる字は、塗りと同じ色の輪郭線を足す
+      const bold = p.bold ? ` stroke="#000" stroke-width="${n(p.bold)}" stroke-linejoin="round"` : "";
+      const attrs = `font-family="${esc(font.family)}" font-weight="${font.weight}" font-size="${n(p.size)}" text-anchor="${p.anchor}" fill="#000"${bold}`;
+      const at = (dx: number) =>
+        p.scaleX !== undefined
+          ? `<text transform="translate(${n(p.x + dx)} ${n(p.y)}) scale(${n(p.scaleX)} 1)" ${attrs}>${esc(p.text)}</text>`
+          : `<text x="${n(p.x + dx)}" y="${n(p.y)}" ${attrs}>${esc(p.text)}</text>`;
+      return smear(p.boldX, at);
     }
     case "line":
       return `<line x1="${n(p.x1)}" y1="${n(p.y1)}" x2="${n(p.x2)}" y2="${n(p.y2)}" ${stroke(p.width, p.dash)}/>`;
@@ -69,11 +72,24 @@ function primSvg(p: Prim, st: Style): string {
     case "path":
       if (p.place) {
         const { sx, sy, ox, oy } = p.place;
-        const transform = `translate(${n(p.x)} ${n(p.y)}) scale(${f(sx)} ${f(sy)}) translate(${n(-ox)} ${n(-oy)})`;
-        return `<path transform="${transform}" d="${esc(p.d)}" fill="#000" fill-rule="evenodd"/>`;
+        // 線の太さは字の座標系で書くので、縦の倍率で割って mm に合わせる
+        const bold = p.place.bold ? ` stroke="#000" stroke-width="${f(p.place.bold / sy)}" stroke-linejoin="round"` : "";
+        return smear(p.place.boldX, (dx) => {
+          const transform = `translate(${n(p.x + dx)} ${n(p.y)}) scale(${f(sx)} ${f(sy)}) translate(${n(-ox)} ${n(-oy)})`;
+          return `<path transform="${transform}" d="${esc(p.d)}" fill="#000" fill-rule="evenodd"${bold}/>`;
+        });
       }
       return `<path transform="translate(${n(p.x)} ${n(p.y)})" d="${p.d}" fill="${p.fill ? "#000" : "none"}" ${stroke(p.width ?? 0.25, p.dash)} stroke-linejoin="round" stroke-linecap="round"/>`;
   }
+}
+
+/**
+ * 横方向にだけ太らせる：同じ形を左右に少しずらして重ねる。縦の線は太くなり、横の線の太さは変わらない。
+ * ずらす幅が線の太さより小さいので、重ねた形はひと続きになる。ひとまとまりで扱えるよう、グループにして出す
+ */
+function smear(width: number | undefined, at: (dx: number) => string): string {
+  if (!width || width < 0.01) return at(0);
+  return `<g>${at(-width / 2)}${at(0)}${at(width / 2)}</g>`;
 }
 
 function stroke(width: number, dash?: number[]): string {

@@ -62,6 +62,12 @@ export interface Style {
    * groupSpread：かたまりが使ってよい幅（拍の幅に対する％）。100 を超えると、その分だけ隣の拍へはみ出して重なってよい。
    * groupGap：字と字の間隔（mm）。マイナスにすると字どうしを重ねて詰める
    */
+  /**
+   * 小さく描く字（短い音符、重ねた字）を太らせる度合い（％）。
+   * 字を縮めると線も同じ割合で細くなるので、輪郭に太さを足して補う。
+   * 100 で四分音符の字とほぼ同じ線の太さになり、0 で何も足さない
+   */
+  shortBold: number;
   groupSpread: number;
   groupGap: number;
   supShift: [number, number];
@@ -113,6 +119,7 @@ export const DEFAULT_STYLE: Style = {
 
   shokaSize: 2.4,
   supSize: 2.2,
+  shortBold: 70,
   groupSpread: 100,
   groupGap: 0.5,
   supShift: [0, 0],

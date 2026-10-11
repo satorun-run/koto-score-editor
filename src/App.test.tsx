@@ -9,7 +9,8 @@ const press = (code: string, key: string, mods: KeyboardEventInit = {}) =>
 
 /** 譜面に描かれている絃名（notes-koto グループの文字）を順に返す */
 function drawnNotes(): string[] {
-  return [...document.querySelectorAll(".page-art #notes-koto text")].map((el) => el.textContent ?? "");
+  // 太らせた字は、同じ文字を3つ重ねたグループになるので、その先頭だけを数える
+  return [...document.querySelectorAll(".page-art #notes-koto > text, .page-art #notes-koto > g > text:first-child")].map((el) => el.textContent ?? "");
 }
 
 beforeEach(() => {

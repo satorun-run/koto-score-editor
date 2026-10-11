@@ -280,6 +280,10 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
             </tbody>
           </table>
           <p className="hint">縦は字の高さ、横は字の幅です。横を縦より小さくすると、細長い字になります。</p>
+          <label>
+            小さい字を太らせる度合い（％。短い音符や重ねた字は、縮めた分だけ線が細くなるので、太さを足して補う。横に大きく縮める字は、縦の線を多めに太らせる。0 で足さない、100 で四分音符の字とほぼ同じ太さ）
+            <NumInput min={0} max={300} step={10} value={style.shortBold} onChange={(e) => setStyle("shortBold", number(e.target.value, 70, 0))} />
+          </label>
           <h2>1拍に複数の音符があるとき</h2>
           <label>
             表示範囲（拍の幅に対する％。100 を超えると、その分だけ隣の拍へはみ出して、隣の音符と重なってよい）

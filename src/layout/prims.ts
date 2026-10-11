@@ -18,6 +18,10 @@ export interface TextPrim extends PrimBase {
   anchor: "start" | "middle" | "end";
   /** 長体（横方向の縮小率）。省略時は 1 */
   scaleX?: number;
+  /** 字を太らせるために輪郭へ足す線の太さ（mm）。省略時は足さない */
+  bold?: number;
+  /** 横方向にだけ、さらに太らせる幅（mm）。縦の線を太くする。省略時は足さない */
+  boldX?: number;
 }
 
 export interface LinePrim extends PrimBase {
@@ -53,7 +57,7 @@ export interface PathPrim extends PrimBase {
    * 独自字形など、別の座標系で書かれたパスを置くときの変換。
    * d の点 (ox, oy) を (x, y) に合わせ、横 sx 倍・縦 sy 倍にする。指定したパスは塗りだけで描く
    */
-  place?: { sx: number; sy: number; ox: number; oy: number };
+  place?: { sx: number; sy: number; ox: number; oy: number; /** 輪郭へ足す線の太さ（mm） */ bold?: number; /** 横方向にだけ足す幅（mm） */ boldX?: number };
 }
 
 export type Prim = TextPrim | LinePrim | CirclePrim | PathPrim;

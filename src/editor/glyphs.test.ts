@@ -87,9 +87,66 @@ describe("独自字形での描画", () => {
     expect([...kinds("all", "notes-koto2")]).toEqual(["path"]);
   });
 
+  it("小さく描く字は、縮めた分に応じて輪郭を太らせる。四分音符の字は太らせない", () => {
+    const bolds = (shortBold: number, glyphs: GlyphSet | null) =>
+      layoutScore(score, { glyphs, shortBold }).pages[0]!.prims.flatMap((p) => {
+        if (p.layer !== "notes-koto") return [];
+        if (p.t === "path" && p.place) return [{ size: p.place.sy * 1000, bold: p.place.bold ?? 0 }];
+        if (p.t === "text") return [{ size: p.size, bold: p.bold ?? 0 }];
+        return [];
+      });
+    for (const glyphs of [stringsOnly, null]) {
+      const list = bolds(100, glyphs);
+      // 四分音符（6.5mm）は 0、八分（92%）は 0.11×(6.5−5.98)、十六分（76%）はそれより太い
+      for (const g of list) {
+        expect(g.bold).toBeCloseTo(g.size >= 6.5 - 1e-6 ? 0 : 0.11 * (6.5 - g.size));
+      }
+      expect(list.some((g) => g.bold > 0.15)).toBe(true);
+      // 度合いを半分にすると、足す太さも半分。0 なら足さない
+      expect(bolds(50, glyphs).map((g) => g.bold)).toEqual(list.map((g) => g.bold / 2).map((b) => (b > 0.005 ? b : 0)));
+      expect(bolds(0, glyphs).every((g) => g.bold === 0)).toBe(true);
+    }
+  });
+
+  it("横に大きく縮める字は、縦の線（横方向）を多めに太らせる", () => {
+    // 十六分：縦 76％、横 50％（縦よりずっと細くする）
+    const sizes = { sizeByLines: [1, 0.92, 0.76, 0.66] as [number, number, number, number], widthByLines: [1, 0.92, 0.5, 0.66] as [number, number, number, number] };
+    const prims = layoutScore(score, { glyphs: stringsOnly, shortBold: 100, ...sizes }).pages[0]!.prims;
+    const places = prims.flatMap((p) => (p.t === "path" && p.place && p.layer === "notes-koto" ? [p.place] : []));
+    const sixteenth = places.find((pl) => Math.abs(pl.sy * 1000 - 6.5 * 0.76) < 1e-6)!;
+    const eighth = places.find((pl) => Math.abs(pl.sy * 1000 - 6.5 * 0.92) < 1e-6)!;
+    // 八分は縦横が同じ比率なので、横方向にだけ足す分はほとんどない
+    expect(eighth.boldX ?? 0).toBeLessThan(0.02);
+    // 十六分：横の線は 0.11×6.5×(1−0.76)、縦の線は 0.11×6.5×(1−0.5) だけ細くなっている。
+    // 輪郭全体に足す分（横方向には 0.5/0.76 倍で効く）と、横方向にだけ足す分を合わせて、縦の線の分になる
+    const all = 0.11 * 6.5 * (1 - 0.76);
+    const horizontal = 0.11 * 6.5 * (1 - 0.5);
+    expect(sixteenth.bold).toBeCloseTo(all);
+    expect(sixteenth.bold! * (0.5 / 0.76) + sixteenth.boldX!).toBeCloseTo(horizontal);
+    expect(sixteenth.boldX!).toBeGreaterThan(sixteenth.bold!);
+
+    // SVGでは、同じ形を左右にずらした3つをグループにして出す
+    const svg = renderSvg(layoutScore(score, { glyphs: stringsOnly, shortBold: 100, ...sizes }).pages[0]!, resolveStyle(score, { glyphs: stringsOnly, ...sizes }));
+    expect(svg).toMatch(/<g><path [^>]+\/><path [^>]+\/><path [^>]+\/><\/g>/);
+  });
+
+  it("太らせた字は、SVGでは輪郭線つきで出る（線の太さは mm で指定どおり）", () => {
+    const page = layoutScore(score, { glyphs: stringsOnly, shortBold: 100 }).pages[0]!;
+    const svg = renderSvg(page, resolveStyle(score, { glyphs: stringsOnly, shortBold: 100 }));
+    const stroked = [...svg.matchAll(/scale\(([\d.]+) ([\d.]+)\) translate\(0 0\)" d="[^"]+" fill="#000" fill-rule="evenodd" stroke="#000" stroke-width="([\d.]+)"/g)];
+    expect(stroked.length).toBeGreaterThan(5);
+    for (const m of stroked) {
+      const sy = Number(m[2]);
+      const mm = Number(m[3]) * sy;
+      expect(mm).toBeCloseTo(0.11 * (6.5 - sy * 1000), 2);
+    }
+    const text = renderSvg(layoutScore(score, { glyphs: null, shortBold: 100 }).pages[0]!, resolveStyle(score, { glyphs: null }));
+    expect(text).toMatch(/<text [^>]*stroke="#000" stroke-width="0\.\d+" stroke-linejoin="round">/);
+  });
+
   it("SVGには、塗りだけのパスとして出る", () => {
-    const page = layoutScore(score, { glyphs: traced }).pages[0]!;
-    const svg = renderSvg(page, resolveStyle(score, { glyphs: traced }));
+    const page = layoutScore(score, { glyphs: traced, shortBold: 0 }).pages[0]!;
+    const svg = renderSvg(page, resolveStyle(score, { glyphs: traced, shortBold: 0 }));
     const group = /<g id="notes-koto">([\s\S]*?)<\/g>/.exec(svg)![1]!;
     expect(group).toContain('fill-rule="evenodd"');
     expect(group).not.toContain("<text");
