@@ -305,7 +305,16 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
         if (j === i) return;
         let left = list[i]!.x0;
         let right = tm.x(Math.min(list[j]!.end, beat + 1));
-        const units = events.slice(i, j + 1).map((e) => unitWidth(st, e));
+        // 拍ごとの調整は、拍の最初の音符に持たせてある。なければ曲全体の設定
+        const tune = events[i]!.beat;
+        const gap = tune?.gap ?? st.groupGap;
+        const spread = Math.max(10, tune?.spread ?? st.groupSpread) / 100;
+        // 最後の字の後ろには間隔を足さない（かたまりの幅を、字の並びそのものにする）
+        const units = events.slice(i, j + 1).map((e, k) => unitWidth(st, e, k === j - i ? Math.max(gap, 0) : gap));
+        // 表示範囲：拍の幅の何％まで使ってよいか。100％を超える分は、左右均等に隣の拍へはみ出してよい（隣の字と重なる）
+        const widen = ((right - left) * (spread - 1)) / 2;
+        left = Math.max(innerLeft, left - widen);
+        right = Math.min(innerRight, right + widen);
         const total = units.reduce((sum, u) => sum + u, 0);
 
         // 拍に入りきらないときは、まず両隣の空き（隣の字までのすき間）を使って、かたまりを拍の外へ広げる。
@@ -659,8 +668,8 @@ function shiftOf(base: readonly [number, number], own: readonly [number, number]
 }
 
 /** 字を寄せて並べるときの、音符1つ分の幅（前記号・絃名・付点と、次の字との間隔） */
-function unitWidth(st: Style, e: Event): number {
-  return naturalWidth(st, e, 1) + dotsWidth(e, glyphSize(st, e, 1)) + prefixWidth(e, 1) + 0.5;
+function unitWidth(st: Style, e: Event, gap = st.groupGap): number {
+  return naturalWidth(st, e, 1) + dotsWidth(e, glyphSize(st, e, 1)) + prefixWidth(e, 1) + gap;
 }
 
 /** 付点が取る幅。四分音符の付点は大きいので広め、短い音符の付点は字に寄せる */

@@ -284,6 +284,31 @@ export function patchCurrent(doc: Doc, fn: (event: Event) => void): Doc | null {
   return updateCurrent(doc, (event) => fn(event));
 }
 
+/** カーソルのある小節・パートの中の、指定した番号の音符を変更する */
+export function patchEventAt(doc: Doc, index: number, fn: (event: Event) => void): Doc | null {
+  return edit(doc, (score, cursor) => {
+    const event = eventsAt(score, cursor)?.[index];
+    if (!event) return false;
+    fn(event);
+  });
+}
+
+/**
+ * カーソルの手前の音符が入っている拍の、音符の範囲 [最初の番号, 最後の番号]。
+ * その拍に音符が1つしかなければ null
+ */
+export function beatGroupOfCurrent(doc: Doc): [number, number] | null {
+  const events = eventsAt(doc.score, doc.cursor);
+  const at = doc.cursor.index - 1;
+  if (!events || at < 0 || doc.cursor.ossia !== undefined) return null;
+  const beats = eventOffsets(events).map((o) => Math.floor(toNumber(o) + 1e-9));
+  let first = at;
+  let last = at;
+  while (first > 0 && beats[first - 1] === beats[at]) first--;
+  while (last + 1 < events.length && beats[last + 1] === beats[at]) last++;
+  return last > first ? [first, last] : null;
+}
+
 export function deleteBack(doc: Doc): Doc | null {
   if (doc.cursor.index === 0) return moveCursor(doc, -1);
   return edit(doc, (score, cursor) => {

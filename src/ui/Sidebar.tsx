@@ -1,6 +1,6 @@
 import type { Dispatch } from "react";
 import {
-  addOssia, addSpan, addVolta, currentEvent, deleteOssia, deleteSpan, eventsAt, patchCurrent, patchMeasure, patchOssia, patchSpan,
+  addOssia, addSpan, addVolta, beatGroupOfCurrent, currentEvent, patchEventAt, deleteOssia, deleteSpan, eventsAt, patchCurrent, patchMeasure, patchOssia, patchSpan,
   spansAtMeasure, type Doc, type Lines,
 } from "../editor/commands";
 import { ABOVE_MARKS, SIGNS, SUP_MARKS, formatBinding, type Keymap } from "../editor/keymap";
@@ -40,6 +40,7 @@ export function Sidebar({ doc, inputLines, mark, keymap, issues, dispatch, width
         ) : (
           <p className="hint">カーソルの手前に音符がありません。</p>
         )}
+        <BeatPanel doc={doc} dispatch={dispatch} />
       </section>
       {measure && (
         <section>
@@ -252,6 +253,40 @@ function EventPanel({ event, next, dispatch }: { event: Event; next: Event | und
       <label>
         上記号
         <input value={(event.above ?? []).join(" ")} placeholder="例：左" onChange={(e) => setList("above", e.target.value)} />
+      </label>
+    </div>
+  );
+}
+
+/** 1拍に複数の音符があるとき、その拍だけ、かたまりの幅と字間を変える欄。空欄なら曲の設定に従う */
+function BeatPanel({ doc, dispatch }: Pick<Props, "doc" | "dispatch">) {
+  const group = beatGroupOfCurrent(doc);
+  if (!group) return null;
+  const first = group[0];
+  const events = eventsAt(doc.score, doc.cursor)!;
+  const tune = events[first]!.beat;
+  const set = (key: "spread" | "gap", text: string) =>
+    dispatch({
+      type: "apply",
+      fn: (d) =>
+        patchEventAt(d, first, (event) => {
+          const next = { ...event.beat };
+          if (text.trim() === "" || !Number.isFinite(Number(text))) delete next[key];
+          else next[key] = Number(text);
+          if (Object.keys(next).length > 0) event.beat = next;
+          else delete event.beat;
+        }),
+    });
+  return (
+    <div className="shift" title="この拍（音符 が複数ある拍）だけの調整です。空欄にすると「曲の設定」の値に従います">
+      <span>この拍の音符の並べ方（{group[1] - group[0] + 1}つの音符）</span>
+      <label>
+        表示範囲％
+        <input type="number" step={5} min={10} aria-label="この拍の表示範囲" placeholder="曲の設定" value={tune?.spread ?? ""} onChange={(e) => set("spread", e.target.value)} />
+      </label>
+      <label>
+        字間mm
+        <input type="number" step={0.1} aria-label="この拍の字間" placeholder="曲の設定" value={tune?.gap ?? ""} onChange={(e) => set("gap", e.target.value)} />
       </label>
     </div>
   );

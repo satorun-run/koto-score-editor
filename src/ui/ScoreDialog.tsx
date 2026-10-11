@@ -280,6 +280,17 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
             </tbody>
           </table>
           <p className="hint">縦は字の高さ、横は字の幅です。横を縦より小さくすると、細長い字になります。</p>
+          <h2>1拍に複数の音符があるとき</h2>
+          <label>
+            表示範囲（拍の幅に対する％。100 を超えると、その分だけ隣の拍へはみ出して、隣の音符と重なってよい）
+            <input type="number" min={10} step={5} value={style.groupSpread} onChange={(e) => setStyle("groupSpread", number(e.target.value, 100, 10))} />
+          </label>
+          <label>
+            字間（mm。字と字の間隔。マイナスにすると字どうしを重ねて詰める）
+            <input type="number" step={0.1} value={style.groupGap} onChange={(e) => setStyle("groupGap", Number.isFinite(Number(e.target.value)) && e.target.value !== "" ? Number(e.target.value) : 0.5)} />
+          </label>
+          <p className="hint">拍ごとに変えたいときは、その拍の音符にカーソルを置き、右のパネルの「この拍の音符の並べ方」で指定します。</p>
+          <h2>記号の位置</h2>
           <table className="sizes">
             <thead>
               <tr><th>記号の位置（曲全体。mm）</th><th>右へ</th><th>下へ</th></tr>

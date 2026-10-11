@@ -140,6 +140,12 @@ export interface EventBase {
   above?: string[];
   /** 右肩記号の位置の調整 [右へ, 下へ]（mm）。曲全体の調整（スタイルの supShift）に足す */
   supShift?: [number, number];
+  /**
+   * この音符から始まる拍（1拍に複数の音符があるとき）の調整。拍の最初の音符に持たせる。
+   * spread はかたまりが使ってよい幅（拍の幅に対する％）、gap は字と字の間隔（mm）。
+   * 指定しなければ、曲全体の設定（スタイルの groupSpread・groupGap）に従う
+   */
+  beat?: { spread?: number; gap?: number };
 }
 
 export interface Note extends EventBase {

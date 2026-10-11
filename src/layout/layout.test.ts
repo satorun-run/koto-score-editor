@@ -389,6 +389,63 @@ describe("レイアウト", () => {
     expect(overlapAB).toBeGreaterThan(overlapBC + 0.5);
   });
 
+  describe("1拍に複数の音符があるときの調整", () => {
+    // 第8小節と同じ形：三三 八七 三三 八九（どの拍にも八分が2つ。三三はわり爪）
+    const crowdedScore = () => {
+      const score = loadSample("rokudan-excerpt");
+      const note = (id: string, n: number, extra: object = {}) => ({ id, type: "note" as const, strings: [{ n }], lines: 1 as const, dots: 0 as const, ...extra });
+      score.measures = [{
+        id: "z", content: { koto: { events: [
+          note("z1", 3, { prefix: "wari", sup: ["2"] }), note("z2", 3, { prefix: "wari", sup: ["3"], joinPrev: true }),
+          note("z3", 8), note("z4", 7, { joinPrev: true }),
+          note("z5", 3, { prefix: "wari", sup: ["2"] }), note("z6", 3, { prefix: "wari", sup: ["3"], joinPrev: true }),
+          note("z7", 8), note("z8", 9, { joinPrev: true }),
+        ] } },
+      }];
+      score.spans = [];
+      return score;
+    };
+    const xs = (score: Score, overrides: Parameters<typeof layoutScore>[1] = {}) => {
+      const page = layoutScore(score, { header: false, ...overrides }).pages[0]!;
+      return Object.fromEntries(page.boxes.map((b) => [b.eventId, b.x]));
+    };
+
+    it("表示範囲を110％にすると、かたまりが左右に5％ずつ隣の拍へ広がる", () => {
+      const base = xs(crowdedScore());
+      const wide = xs(crowdedScore(), { groupSpread: 110 });
+      const beat = (45 - 2.4) / 4;
+      // 3拍目の三三：左へ拍の5％ぶん出て、2つの字の間が広がる
+      expect(wide.z5).toBeCloseTo(base.z5! - beat * 0.05);
+      expect(wide.z6! - wide.z5!).toBeGreaterThan(base.z6! - base.z5! + 0.5);
+      // 小節の端にある1拍目は、小節の外へは出ない
+      expect(wide.z1).toBeCloseTo(base.z1!);
+    });
+
+    it("拍ごとの指定は、その拍だけに効く", () => {
+      const score = crowdedScore();
+      const base = xs(score);
+      const events = score.measures[0]!.content.koto!;
+      if (!("events" in events)) throw new Error("想定外のデータ");
+      events.events[4]!.beat = { spread: 120 };
+      const tuned = xs(score);
+      expect(tuned.z5).toBeLessThan(base.z5! - 0.5);
+      expect(tuned.z3).toBeCloseTo(base.z3!);
+      expect(tuned.z7).toBeCloseTo(base.z7!);
+    });
+
+    it("字間を変えると、余裕のある拍では字と字の距離がその分だけ変わる", () => {
+      const score = loadSample("rokudan-excerpt");
+      // 幅を広く取り、第4小節の八分2つ（八 七）が余裕で入るようにする
+      const gapOf = (groupGap: number) => {
+        const page = layoutScore(score, { areaWidth: 320, groupGap }).pages[0]!;
+        return boxOf(page.boxes, "m4e3").x - boxOf(page.boxes, "m4e2").x;
+      };
+      expect(gapOf(1.5) - gapOf(0.5)).toBeCloseTo(1);
+      // マイナスなら字が重なる（字の幅より狭い間隔で並ぶ）
+      expect(gapOf(-1)).toBeCloseTo(6.5 * 0.88 - 1);
+    });
+  });
+
   it("1ページの段数を超えたら改ページする", () => {
     const score = loadSample("rokudan-excerpt");
     score.settings.systemsPerPage = 1;

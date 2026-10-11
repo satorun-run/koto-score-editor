@@ -57,6 +57,13 @@ export interface Style {
   shokaSize: number;
   supSize: number;
   /** 右肩記号・前記号の位置の、曲全体での調整 [右へ, 下へ]（mm）。音符ごとの調整はこれに足す */
+  /**
+   * 1拍に複数の音符があるときの並べ方（曲全体）。
+   * groupSpread：かたまりが使ってよい幅（拍の幅に対する％）。100 を超えると、その分だけ隣の拍へはみ出して重なってよい。
+   * groupGap：字と字の間隔（mm）。マイナスにすると字どうしを重ねて詰める
+   */
+  groupSpread: number;
+  groupGap: number;
   supShift: [number, number];
   prefixShift: [number, number];
   markSize: number;
@@ -106,6 +113,8 @@ export const DEFAULT_STYLE: Style = {
 
   shokaSize: 2.4,
   supSize: 2.2,
+  groupSpread: 100,
+  groupGap: 0.5,
   supShift: [0, 0],
   prefixShift: [0, 0],
   markSize: 3.6,
