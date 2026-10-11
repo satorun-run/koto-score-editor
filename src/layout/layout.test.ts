@@ -459,6 +459,79 @@ describe("レイアウト", () => {
     });
   });
 
+  it("押し手の括弧は、口唱歌の下で、両端の押し手の三角の頂点どうしをつなぐ", () => {
+    const score = loadSample("rokudan-excerpt");
+    // 七 為 巾（一重押し） 為（一重押し）。巾と為に括弧
+    score.measures = [{
+      id: "b", content: { koto: {
+        events: [
+          { id: "b1", type: "note", strings: [{ n: 7 }], lines: 0, dots: 0 },
+          { id: "b2", type: "note", strings: [{ n: 12 }], lines: 0, dots: 0 },
+          { id: "b3", type: "note", strings: [{ n: 13, press: 1 }], lines: 0, dots: 0 },
+          { id: "b4", type: "note", strings: [{ n: 12, press: 1 }], lines: 0, dots: 0 },
+        ],
+        shoka: [{ at: "2", text: "チン" }, { at: "3", text: "ツン" }],
+      } },
+    }];
+    score.spans = [{ id: "s", kind: "pressBracket", part: "koto", from: "b3", to: "b4" }];
+    const page = layoutScore(score, { header: false }).pages[0]!;
+    const bracket = page.prims.find((p) => p.t === "path" && p.layer === "techniques" && p.d.includes(" H "))!;
+    const shoka = page.prims.find((p) => p.t === "text" && p.layer === "shoka")!;
+    const triangles = page.prims.filter((p) => p.t === "path" && p.layer === "techniques" && p.d.endsWith("Z"));
+    const note = boxOf(page.boxes, "b3");
+    if (bracket.t !== "path" || shoka.t !== "text") throw new Error("想定外の描画要素");
+    expect(triangles).toHaveLength(2);
+    // 括弧の横線は、口唱歌より下、絃名より上
+    expect(bracket.y).toBeGreaterThan(shoka.y);
+    expect(bracket.y).toBeLessThan(note.y);
+    // 横の位置は、2つの音符の中央どうし
+    const center = (id: string) => boxOf(page.boxes, id).x + boxOf(page.boxes, id).w / 2;
+    expect(bracket.x).toBeCloseTo(center("b3"));
+    expect(bracket.d).toContain(` H ${Math.round((center("b4") - center("b3")) * 1000) / 1000}`);
+  });
+
+  it("補助行に添える文字（（三絃）など）は、項目の下の中央に、小節ごとに置く", () => {
+    const score = loadSample("rokudan-excerpt");
+    score.tracks = [{ id: "san", kind: "text", below: "koto", label: "（三絃）" }];
+    score.measures = [score.measures[0]!, score.measures[1]!];
+    score.spans = [];
+    score.measures[0]!.aux = { san: [{ at: "2", text: "トツ" }, { at: "3", text: "テン" }] };
+    const page = layoutScore(score, { header: false }).pages[0]!;
+    const texts = page.prims.flatMap((p) => (p.t === "text" && p.layer === "aux-san" ? [p] : []));
+    expect(texts.map((t) => t.text)).toEqual(["トツ", "テン", "（三絃）"]);
+    const [a, b, label] = texts;
+    // 2つの項目の間の中央、1行下に、少し小さく
+    expect(label!.x).toBeCloseTo((a!.x + b!.x) / 2, 0);
+    expect(label!.y).toBeGreaterThan(a!.y + 1);
+    expect(label!.size).toBeLessThan(a!.size);
+  });
+
+  it("フェルマータは、口唱歌のある行では口唱歌の上に置く", () => {
+    const score = loadSample("rokudan-excerpt");
+    // 抜粋の最後の小節：六（フェルマータ、口唱歌リーン）
+    const page = layoutScore(score).pages[0]!;
+    const arc = page.prims.find((p) => p.t === "path" && p.layer === "techniques" && p.d.includes(" A "))!;
+    const box = boxOf(page.boxes, "m7e1");
+    // 「リ」は前の小節の口唱歌にもあるので、最後のもの（この小節の「リーン」の頭）を取る
+    const shoka = page.prims.flatMap((p) => (p.t === "text" && p.layer === "shoka" && p.text === "リ" ? [p] : [])).at(-1)!;
+    if (arc.t !== "path") throw new Error("想定外の描画要素");
+    expect(arc.x).toBeCloseTo(box.x + box.w / 2);
+    expect(arc.y).toBeLessThan(shoka.y - 1.5);
+    expect(arc.y).toBeGreaterThan(shoka.y - 6);
+
+    // 口唱歌のない行では、絃名のすぐ上
+    const plain = loadSample("rokudan-excerpt");
+    for (const m of plain.measures) {
+      const pm = m.content.koto!;
+      if ("events" in pm) delete pm.shoka;
+    }
+    const page2 = layoutScore(plain).pages[0]!;
+    const arc2 = page2.prims.find((p) => p.t === "path" && p.layer === "techniques" && p.d.includes(" A "))!;
+    const box2 = boxOf(page2.boxes, "m7e1");
+    if (arc2.t !== "path") throw new Error("想定外の描画要素");
+    expect(box2.y - arc2.y).toBeLessThan(2);
+  });
+
   it("1ページの段数を超えたら改ページする", () => {
     const score = loadSample("rokudan-excerpt");
     score.settings.systemsPerPage = 1;

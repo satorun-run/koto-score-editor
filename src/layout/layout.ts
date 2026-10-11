@@ -25,6 +25,7 @@ import { buildTimeMap, type TimeMap } from "./timemap";
 const DESCENT = 0.12;
 const BRACKET_MARGIN = 2.5;
 const PRESS_HEIGHT = 1.15;
+const PRESS_BRACKET_HEIGHT = 1.2;
 
 interface SystemPlan {
   /** 小節の通し番号 */
@@ -51,6 +52,8 @@ interface EventGeom {
   right: number;
   top: number;
   baseY: number;
+  /** 押し手の三角の頂点（押し手がなければ絃名の上端）の y */
+  markTop: number;
 }
 
 interface Ctx {
@@ -470,6 +473,9 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
     const voltas = pi === 0 ? spansHere.filter((s) => s.kind === "volta") : [];
     const partName = isFirst && part.name ? part.name : undefined;
     const rowSpans = spansHere.filter((s) => s.kind !== "volta" && spanPart(ctx, s) === part.id);
+    // 押し手の括弧は三角どうしを直接つなぐので、絃名のすぐ上に場所を取る。波線・破線は口唱歌より上の帯に引く
+    const pressBrackets = rowSpans.filter((s) => s.kind === "pressBracket");
+    const bandSpans = rowSpans.filter((s) => s.kind !== "pressBracket");
 
     // 行の内容を集める
     const rowEvents: { mi: number; events: Event[] }[] = [];
@@ -489,11 +495,16 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
 
     // 縦方向の帯
     const marksH = marksHere.length > 0 || voltas.length > 0 || partName ? st.markSize * 1.6 : 0;
-    const spanH = rowSpans.length > 0 ? 3.4 : 0;
+    if (pressBrackets.length > 0) headroom += PRESS_BRACKET_HEIGHT + 0.3;
+    const spanH = bandSpans.length > 0 ? 3.4 : 0;
     const shokaH = hasShoka ? st.shokaSize * 1.35 : 0;
     const marksTop = y;
     const spanTop = marksTop + marksH;
-    const shokaTop = spanTop + spanH;
+    // フェルマータは、口唱歌がある行では口唱歌の上に置く（元譜の書き方）。その分の場所を取る
+    const hasFermata = rowEvents.some(({ events }) => events.some((e) => e.above?.includes("fermata")));
+    const fermataH = hasShoka && hasFermata ? st.supSize * 0.95 : 0;
+    const shokaTop = spanTop + spanH + fermataH;
+    const fermataY = fermataH > 0 ? shokaTop - 0.15 : undefined;
     const bodyTop = shokaTop + shokaH + headroom;
     const baseY = bodyTop + st.noteSize;
     const beamH = 0.6 + maxLines * st.beamGap;
@@ -516,7 +527,7 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
       const list: EventGeom[] = [];
       events.forEach((e, i) => {
         const cell = rowCells[i]!;
-        const g = drawEvent(prims, st, e, cell.x0, cell.x1 - cell.x0, baseY, 1, role, notesLayer);
+        const g = drawEvent(prims, st, e, cell.x0, cell.x1 - cell.x0, baseY, 1, role, notesLayer, fermataY);
         list.push(g);
         geoms.set(e.id, g);
         boxes.push({ eventId: e.id, measureId: m.id, partId: part.id, x: cell.x0, y: bodyTop, w: cell.slotEnd - cell.x0, h: st.noteSize + beamH });
@@ -641,7 +652,7 @@ function glyphSize(st: Style, e: Event, scale: number): number {
 
 /** 重ねた絃名1つ分の大きさ（1つだけなら等倍） */
 function chordSubScale(count: number): number {
-  return count <= 1 ? 1 : count === 2 ? 0.62 : 0.46;
+  return count <= 1 ? 1 : count === 2 ? 0.7 : 0.5;
 }
 
 function naturalWidth(st: Style, e: Event, scale: number): number {
@@ -715,6 +726,8 @@ function drawEvent(
   scale: number,
   role: FontRole,
   layer: string,
+  /** フェルマータを口唱歌の上に置くときの、弧の下端の y。指定がなければ絃名のすぐ上に置く */
+  fermataY?: number,
 ): EventGeom {
   const size = glyphSize(st, e, scale);
   const natural = naturalWidth(st, e, scale);
@@ -801,17 +814,22 @@ function drawEvent(
   // 上記号：押し手、文字
   // 絃名の字は枠より少し小さいので、押し手は枠の上端に少し食い込ませて字に寄せる
   let ay = top + size * 0.04;
+  let markTop = top;
   const press = pressOf(e);
   if (press) {
     drawPress(prims, techLayer, cx, ay, press, scale, st.lineWidth);
+    markTop = ay - PRESS_HEIGHT * scale;
     ay -= (PRESS_HEIGHT + 0.45) * scale;
   }
   const aboveSize = st.supSize * scale;
   for (const a of e.above ?? []) {
     if (a === "fermata") {
       const rad = aboveSize * 0.6;
-      prims.push({ t: "path", layer: techLayer, x: cx, y: ay, d: `M ${r(-rad)} 0 A ${r(rad)} ${r(rad)} 0 0 1 ${r(rad)} 0`, fill: false, width: st.lineWidth });
-      prims.push({ t: "circle", layer: techLayer, cx, cy: ay - rad * 0.25, r: rad * 0.16, fill: true });
+      const fy = fermataY ?? ay;
+      prims.push({ t: "path", layer: techLayer, x: cx, y: fy, d: `M ${r(-rad)} 0 A ${r(rad)} ${r(rad)} 0 0 1 ${r(rad)} 0`, fill: false, width: st.lineWidth });
+      prims.push({ t: "circle", layer: techLayer, cx, cy: fy - rad * 0.25, r: rad * 0.16, fill: true });
+      // 口唱歌の上に置いたときは、絃名の上の場所は使わない
+      if (fermataY !== undefined) continue;
     } else if (a === "甲") {
       prims.push({ t: "circle", layer: techLayer, cx, cy: ay - aboveSize * 0.4, r: aboveSize * 0.14, fill: true });
     } else {
@@ -830,7 +848,7 @@ function drawEvent(
     sxPos += textEm(s) * supSize;
   }
 
-  return { cx, left, right, top, baseY };
+  return { cx, left, right, top, baseY, markTop };
 }
 
 function glyph(layer: string, cx: number, bottom: number, text: string, size: number, font: FontRole, sx: number): Prim {
@@ -1037,11 +1055,14 @@ function drawSpan(
   const textY = mid + size * (0.5 - DESCENT);
 
   if (span.kind === "pressBracket") {
+    // 両端の押し手の三角の頂点から立ち上げて、横線でつなぐ
     const x1 = from ? from.cx : left;
     const x2 = to ? to.cx : right;
-    const h = height - 0.8;
-    const d = `${from ? `M 0 ${r(h)} V 0` : "M 0 0"} H ${r(x2 - x1)}${to ? ` V ${r(h)}` : ""}`;
-    prims.push({ t: "path", layer, x: x1, y: top + 0.4, d, fill: false, width: st.lineWidth });
+    const apex = Math.min(from?.markTop ?? Infinity, to?.markTop ?? Infinity);
+    if (!Number.isFinite(apex)) return;
+    const bar = apex - PRESS_BRACKET_HEIGHT;
+    const d = `${from ? `M 0 ${r(from.markTop - bar)} V 0` : "M 0 0"} H ${r(x2 - x1)}${to ? ` V ${r(to.markTop - bar)}` : ""}`;
+    prims.push({ t: "path", layer, x: x1, y: bar, d, fill: false, width: st.lineWidth });
     return;
   }
 
@@ -1084,11 +1105,11 @@ function auxRowHeight(ctx: Ctx, track: AuxTrack, plan: SystemPlan): number {
   if (!hasItems && !ctx.extendOpen.has(track.id) && !ctx.forceLanes.has(`aux:${track.id}`)) return 0;
   switch (track.kind) {
     case "pitch":
-      return st.auxNoteSize * 1.3 + (trackHasPress(ctx, track, plan) ? PRESS_HEIGHT * 0.6 + 0.3 : 0);
+      return st.auxNoteSize * 1.3 + (trackHasPress(ctx, track, plan) ? PRESS_HEIGHT * 0.6 + 0.3 : 0) + auxLabelHeight(st, track);
     case "rhythm":
-      return st.auxTextSize * 1.3 + 3 * st.beamGap * 0.7;
+      return st.auxTextSize * 1.3 + 3 * st.beamGap * 0.7 + auxLabelHeight(st, track);
     default:
-      return st.auxTextSize * 1.35;
+      return st.auxTextSize * 1.35 + auxLabelHeight(st, track);
   }
 }
 
@@ -1098,6 +1119,15 @@ interface PlacedAuxItem {
   item: AuxItem;
   mi: number;
   index: number;
+}
+
+function auxLabelSize(st: Style, track: AuxTrack): number {
+  return (track.kind === "pitch" ? st.auxNoteSize : st.auxTextSize) * 0.8;
+}
+
+/** 補助行に添える文字の行の高さ。添える文字がなければ 0 */
+function auxLabelHeight(st: Style, track: AuxTrack): number {
+  return track.label ? auxLabelSize(st, track) * 1.3 : 0;
 }
 
 function auxItemText(item: AuxItem): string {
@@ -1124,7 +1154,8 @@ function drawAuxRow(
   const isPitch = track.kind === "pitch";
   const isRhythm = track.kind === "rhythm";
   const size = isPitch ? st.auxNoteSize : st.auxTextSize;
-  const bottom = isRhythm ? top + st.auxTextSize * 1.3 : top + height;
+  const labelH = auxLabelHeight(st, track);
+  const bottom = isRhythm ? top + st.auxTextSize * 1.3 : top + height - labelH;
   const baseline = bottom - size * (DESCENT + 0.1);
   const lineY = bottom - size * 0.55;
 
@@ -1149,9 +1180,15 @@ function drawAuxRow(
     });
   }
 
-  if (track.label && placed.length > 0) {
-    const last = placed[placed.length - 1]!;
-    prims.push({ t: "text", layer, x: last.right + 1, y: baseline, text: track.label, size: size * 0.8, font: "sub", anchor: "start" });
+  // 添える文字（「（三絃）」など）は、小節ごとに、項目の下の中央へ置く
+  if (track.label) {
+    const labelSize = auxLabelSize(st, track);
+    for (const mi of plan.measures) {
+      const inMeasure = placed.filter((p) => p.mi === mi);
+      if (inMeasure.length === 0) continue;
+      const cx = (inMeasure[0]!.left + inMeasure[inMeasure.length - 1]!.right) / 2;
+      prims.push({ t: "text", layer, x: cx, y: top + height - labelSize * (DESCENT + 0.1), text: track.label, size: labelSize, font: "sub", anchor: "middle" });
+    }
   }
 
   // リズム唱歌の音価線

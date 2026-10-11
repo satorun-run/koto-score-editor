@@ -32,7 +32,7 @@ describe("下書き記法", () => {
       { strings: [{ n: 7 }], lines: 2 },
       { strings: [{ n: 9, press: 2 }] },
       { strings: [{ n: 11, press: 1 }], above: ["左"] },
-      { strings: [{ n: 13 }, { n: 12 }], chord: "arc", sup: ["オ", "ハ"] },
+      { strings: [{ n: 13 }, { n: 12 }], sup: ["オ", "ハ"] },
       { type: "sign", sign: "ワ", dots: 2 },
     ]);
   });
@@ -44,6 +44,14 @@ describe("下書き記法", () => {
       ["note", 0, false], ["dot", 1, false], ["dot", 2, false], ["note", 2, false], ["note", 0, false], ["rest", 0, false],
     ]);
     expect(validateScore(score)).toEqual([]);
+  });
+
+  it("合せ爪は囲みなしが基本で、( を付けると左弧になる", () => {
+    const { score, errors } = parse("巾+為 ○ (壱+五 ○");
+    expect(errors).toEqual([]);
+    const [plain, , arc] = eventsOf(score, 0);
+    expect(plain!.type === "note" && plain!.chord).toBeUndefined();
+    expect(arc).toMatchObject({ strings: [{ n: 1 }, { n: 5 }], chord: "arc" });
   });
 
   it("音価線：同じ拍の中は自動でつなぎ、& と ! で上書きする", () => {

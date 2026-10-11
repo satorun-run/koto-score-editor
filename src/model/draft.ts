@@ -224,7 +224,7 @@ interface ParsedToken {
 
 /**
  * 音符1つ分の記法：
- *   [&|!] [~|%] 絃(+絃…) [_…] [.…] ['右肩]… ["上記号]… [<波線の始点] [>波線の終点]
+ *   [&|!] [~|%] [(] 絃(+絃…) [_…] [.…] ['右肩]… ["上記号]… [<波線の始点] [>波線の終点]
  * 絃は 壱〜巾、休符は ○、拍の中に置く付点は ●、記号音符は ワ・ス。絃の前の △ ▲ ▲▲ が押し手。
  */
 function parseToken(token: string, id: string, fail: (message: string) => void): ParsedToken | null {
@@ -235,6 +235,10 @@ function parseToken(token: string, id: string, fail: (message: string) => void):
   if (peek() === "&") { join = true; i++; } else if (peek() === "!") { join = false; i++; }
   let prefix: Note["prefix"];
   if (peek() === "~") { prefix = "kaki"; i++; } else if (peek() === "%") { prefix = "wari"; i++; }
+
+  // 合せ爪の左弧
+  let arc = false;
+  if (peek() === "(") { arc = true; i++; }
 
   const strings: StringRef[] = [];
   let kind: "note" | "rest" | "sign" | "dot" = "note";
@@ -297,7 +301,7 @@ function parseToken(token: string, id: string, fail: (message: string) => void):
   else if (kind === "sign") event = { ...base, type: "sign", sign };
   else {
     event = { ...base, type: "note", strings };
-    if (strings.length > 1) event.chord = "arc";
+    if (strings.length > 1 && arc) event.chord = "arc";
     if (prefix) event.prefix = prefix;
   }
   if (prefix && kind !== "note") fail(`「${token}」：かき爪・わり爪は絃にだけ付けられます`);
