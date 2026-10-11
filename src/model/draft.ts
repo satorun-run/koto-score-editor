@@ -117,11 +117,11 @@ export function parseDraft(text: string): DraftResult {
     }
 
     // 補助行： 歌: 字@拍位置 …　／　節: 絃@拍位置 …（直前の小節に付く）
-    const aux = /^(歌|節)\s*[:：]\s*(.*)$/.exec(line);
+    const aux = /^(歌|節|手)\s*[:：]\s*(.*)$/.exec(line);
     if (aux) {
       const prev = score.measures[score.measures.length - 1];
       if (!prev) fail("補助行は、小節の行の後に書きます");
-      else parseAux(aux[1] as "歌" | "節", aux[2]!, score, prev, fail);
+      else parseAux(aux[1] as "歌" | "節" | "手", aux[2]!, score, prev, fail);
       continue;
     }
 
@@ -363,20 +363,23 @@ function parseShoka(source: string, events: Event[], fail: (message: string) => 
 const AUX_TRACKS = {
   歌: { id: "lyrics", kind: "lyrics", name: "歌詞" },
   節: { id: "melody", kind: "pitch", name: "歌の節" },
+  手: { id: "hand", kind: "text", name: "休みの間の手" },
 } as const;
+const AUX_ORDER = ["hand", "lyrics", "melody"];
 
 /**
  * 補助行。空白区切りの「中身@拍位置」を並べる。末尾に「-」を付けると、次の項目まで延ばし線を引く。
  *   歌: た@1 ち@1.5
  *   節: ▲六@1 七@1.25- |@3     （「|」は延ばし線の終わり。絃は「+」で横に並べられる）
+ *   手: 為ス@1 巾@2             （休符の下に小さく書かれた手。文字のまま置く）
  * 拍位置は分数（3/2）でも小数（1.5、1/8拍きざみ）でもよい
  */
-function parseAux(head: "歌" | "節", source: string, score: Score, measure: Measure, fail: (message: string) => void): void {
+function parseAux(head: "歌" | "節" | "手", source: string, score: Score, measure: Measure, fail: (message: string) => void): void {
   const def = AUX_TRACKS[head];
   if (!score.tracks.some((t) => t.id === def.id)) {
     score.tracks.push({ id: def.id, kind: def.kind, name: def.name, below: PART });
     // 元譜と同じく、歌詞を上、歌の節を下に並べる
-    score.tracks.sort((a, b) => (a.id === "lyrics" ? 0 : 1) - (b.id === "lyrics" ? 0 : 1));
+    score.tracks.sort((a, b) => AUX_ORDER.indexOf(a.id) - AUX_ORDER.indexOf(b.id));
   }
   const items: AuxItem[] = (measure.aux ??= {})[def.id] ??= [];
   for (const token of source.split(/\s+/).filter(Boolean)) {
@@ -388,7 +391,7 @@ function parseAux(head: "歌" | "節", source: string, score: Score, measure: Me
     }
     const body = m[1]!;
     const item: AuxItem = { at };
-    if (head === "歌" || body === "|" || body === "") item.text = body === "|" ? "" : body;
+    if (head !== "節" || body === "|" || body === "") item.text = body === "|" ? "" : body;
     else {
       const notes: StringRef[] = [];
       let press = 0;

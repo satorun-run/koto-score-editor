@@ -110,6 +110,13 @@ describe("下書き記法の補助行", () => {
     ]);
   });
 
+  it("休符の下の小さい手は、文字のまま別の行に置く", () => {
+    const { score, errors } = parseDraft(["---", "五 ○ ○ 為_ ス_", "手: ▲四ス@1 巾@2", "歌: た@0"].join("\n"));
+    expect(errors).toEqual([]);
+    expect(score.tracks.map((t) => [t.id, t.kind])).toEqual([["hand", "text"], ["lyrics", "lyrics"]]);
+    expect(score.measures[0]!.aux!.hand).toEqual([{ at: "1", text: "▲四ス" }, { at: "2", text: "巾" }]);
+  });
+
   it("形の合わない項目は誤りとして知らせる", () => {
     const { errors } = parseDraft(["---", "七 ○ 七 ○", "節: 六 あ@1"].join("\n"));
     expect(errors).toHaveLength(2);
