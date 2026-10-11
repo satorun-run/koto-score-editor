@@ -92,6 +92,30 @@ describe("下書き記法", () => {
   });
 });
 
+describe("下書き記法の補助行", () => {
+  it("歌詞と歌の節を、直前の小節に付ける", () => {
+    const text = ["pitches: D4 G3 A3 A#3 D4 D#4 G4 A4 A#4 D5 D#5 G5 A5", "---", "七 ○ ▲八 ○ # 注", "歌: わ@3", "節: ▲六@1 七@1.25- 五+四@3 |@7/2"].join("\n");
+    const { score, errors } = parseDraft(text);
+    expect(errors).toEqual([]);
+    // 音名の # はコメントにしない
+    expect(score.parts[0]!.tuning?.pitches).toHaveLength(13);
+    expect(score.tracks.map((t) => [t.id, t.kind])).toEqual([["lyrics", "lyrics"], ["melody", "pitch"]]);
+    const aux = score.measures[0]!.aux!;
+    expect(aux.lyrics).toEqual([{ at: "3", text: "わ" }]);
+    expect(aux.melody).toEqual([
+      { at: "1", notes: [{ n: 6, press: 2 }] },
+      { at: "5/4", notes: [{ n: 7 }], extend: true },
+      { at: "3", notes: [{ n: 5 }, { n: 4 }] },
+      { at: "7/2", text: "" },
+    ]);
+  });
+
+  it("形の合わない項目は誤りとして知らせる", () => {
+    const { errors } = parseDraft(["---", "七 ○ 七 ○", "節: 六 あ@1"].join("\n"));
+    expect(errors).toHaveLength(2);
+  });
+});
+
 describe("六段の調の下書き", () => {
   const { score, errors } = parseDraft(read("drafts/rokudan.draft.txt"));
 

@@ -3,7 +3,7 @@
 
 import { eventOffsets } from "./duration";
 import { toNumber } from "./fraction";
-import type { Barline, Event, Mark, Measure, Note, Score, ShokaItem, Span, StringRef } from "./types";
+import type { AuxItem, Barline, Event, Mark, Measure, Note, Score, ShokaItem, Span, StringRef } from "./types";
 
 export interface DraftError {
   line: number;
@@ -83,7 +83,8 @@ export function parseDraft(text: string): DraftResult {
 
   for (const raw of lines) {
     lineNo++;
-    const line = raw.replace(/#.*$/, "").trim();
+    // 「#」は行頭か空白の後にあるときだけコメント（音名の A#3 などを切らない）
+    const line = raw.replace(/(^|\s)#.*$/, "").trim();
     if (!line) continue;
     if (line === "---") {
       inBody = true;
@@ -112,6 +113,15 @@ export function parseDraft(text: string): DraftResult {
         continue;
       }
       applyDirective(body, pending, fail);
+      continue;
+    }
+
+    // 補助行： 歌: 字@拍位置 …　／　節: 絃@拍位置 …（直前の小節に付く）
+    const aux = /^(歌|節)\s*[:：]\s*(.*)$/.exec(line);
+    if (aux) {
+      const prev = score.measures[score.measures.length - 1];
+      if (!prev) fail("補助行は、小節の行の後に書きます");
+      else parseAux(aux[1] as "歌" | "節", aux[2]!, score, prev, fail);
       continue;
     }
 
@@ -348,6 +358,70 @@ function parseShoka(source: string, events: Event[], fail: (message: string) => 
     items.push({ at: offset.d === 1 ? `${offset.n}` : `${offset.n}/${offset.d}`, text: token });
   }
   return items.sort((a, b) => fractionValue(a.at) - fractionValue(b.at));
+}
+
+const AUX_TRACKS = {
+  歌: { id: "lyrics", kind: "lyrics", name: "歌詞" },
+  節: { id: "melody", kind: "pitch", name: "歌の節" },
+} as const;
+
+/**
+ * 補助行。空白区切りの「中身@拍位置」を並べる。末尾に「-」を付けると、次の項目まで延ばし線を引く。
+ *   歌: た@1 ち@1.5
+ *   節: ▲六@1 七@1.25- |@3     （「|」は延ばし線の終わり。絃は「+」で横に並べられる）
+ * 拍位置は分数（3/2）でも小数（1.5、1/8拍きざみ）でもよい
+ */
+function parseAux(head: "歌" | "節", source: string, score: Score, measure: Measure, fail: (message: string) => void): void {
+  const def = AUX_TRACKS[head];
+  if (!score.tracks.some((t) => t.id === def.id)) {
+    score.tracks.push({ id: def.id, kind: def.kind, name: def.name, below: PART });
+    // 元譜と同じく、歌詞を上、歌の節を下に並べる
+    score.tracks.sort((a, b) => (a.id === "lyrics" ? 0 : 1) - (b.id === "lyrics" ? 0 : 1));
+  }
+  const items: AuxItem[] = (measure.aux ??= {})[def.id] ??= [];
+  for (const token of source.split(/\s+/).filter(Boolean)) {
+    const m = /^(.*)@([\d./]+)(-?)$/.exec(token);
+    const at = m ? draftPosition(m[2]!) : null;
+    if (!m || at === null) {
+      fail(`補助行の「${token}」は「中身@拍位置」の形で書きます`);
+      continue;
+    }
+    const body = m[1]!;
+    const item: AuxItem = { at };
+    if (head === "歌" || body === "|" || body === "") item.text = body === "|" ? "" : body;
+    else {
+      const notes: StringRef[] = [];
+      let press = 0;
+      let bad = false;
+      for (const ch of body) {
+        if (ch === "+") continue;
+        if (ch === "△" || ch === "▲") { press += ch === "△" ? 1 : 2; continue; }
+        const n = STRINGS[ch];
+        if (n === undefined) { bad = true; break; }
+        notes.push(press > 0 ? { n, press: Math.min(press, 3) as 1 | 2 | 3 } : { n });
+        press = 0;
+      }
+      if (bad || notes.length === 0) {
+        fail(`補助行の「${token}」の絃名を読めません`);
+        continue;
+      }
+      item.notes = notes;
+    }
+    if (m[3]) item.extend = true;
+    items.push(item);
+  }
+  items.sort((a, b) => fractionValue(a.at) - fractionValue(b.at));
+}
+
+/** 拍位置を分数の文字列にそろえる。小数は 1/8 拍きざみで受け付ける */
+function draftPosition(text: string): string | null {
+  if (/^\d+(\/[1-9]\d*)?$/.test(text)) return text;
+  if (!/^\d*\.\d+$/.test(text)) return null;
+  const eighths = Number(text) * 8;
+  if (!Number.isInteger(eighths)) return null;
+  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+  const g = gcd(eighths, 8) || 1;
+  return 8 / g === 1 ? `${eighths / g}` : `${eighths / g}/${8 / g}`;
 }
 
 function fractionValue(text: string): number {
