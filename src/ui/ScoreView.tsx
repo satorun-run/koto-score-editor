@@ -66,7 +66,9 @@ function atFromX(lane: LaneBox, x: number, free: boolean): string | null {
 
 /** 出力と同じSVGを表示し、その上に選択用の透明な領域・カーソル・入力欄を重ねる */
 export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap, zoom, onCursor, onPutItem, onMoveItem }: Props) {
-  const caretRef = useRef<SVGLineElement>(null);
+  /** カーソルの位置（ページ番号と、ページ内の mm 座標）。描画のたびに更新する */
+  const caretPos = useRef<{ page: number; x: number; y1: number; y2: number } | null>(null);
+  caretPos.current = null;
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragRef = useRef<Drag | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -84,8 +86,24 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
   const currentId = cursorEvents[cursor.index - 1]?.id;
 
   useEffect(() => {
-    caretRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [cursor.mi, cursor.partId, cursor.index, cursor.ossia, layout]);
+    // カーソルが見える範囲の外にあるときだけ、譜面の表示欄を必要な分だけ送る。
+    // ブラウザ任せ（scrollIntoView）にすると、iPad の Safari では画面全体がずれてしまう
+    const pos = caretPos.current;
+    const pageEl = pos ? pageRefs.current[pos.page] : null;
+    const scroller = pageEl?.closest(".canvas");
+    if (!pos || !pageEl || !(scroller instanceof HTMLElement)) return;
+    const page = pageEl.getBoundingClientRect();
+    const view = scroller.getBoundingClientRect();
+    if (view.width === 0 || view.height === 0) return;
+    const margin = Math.min(40, view.height / 4, view.width / 4);
+    const x = page.left + pos.x * zoom;
+    const top = page.top + pos.y1 * zoom;
+    const bottom = page.top + pos.y2 * zoom;
+    if (top < view.top + margin) scroller.scrollTop -= view.top + margin - top;
+    else if (bottom > view.bottom - margin) scroller.scrollTop += bottom - (view.bottom - margin);
+    if (x < view.left + margin) scroller.scrollLeft -= view.left + margin - x;
+    else if (x > view.right - margin) scroller.scrollLeft += x - (view.right - margin);
+  }, [cursor.mi, cursor.partId, cursor.index, cursor.ossia, layout, zoom]);
 
   const laneKind = (lane: string): LaneKind => {
     const ref = parseLane(lane);
@@ -209,6 +227,7 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
           y1: anchor.y - 1.5,
           y2: anchor.y + anchor.h + 1.5,
         };
+        if (caret) caretPos.current = { page: pi, ...caret };
         return (
           <div
             key={pi}
@@ -276,7 +295,7 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
                   onMouseDown={(e) => onEventDown(e, b.measureId, b.partId, b.eventId, b.ossia)}
                 />
               ))}
-              {caret && <line ref={caretRef} className="caret" x1={caret.x} x2={caret.x} y1={caret.y1} y2={caret.y2} />}
+              {caret && <line className="caret" x1={caret.x} x2={caret.x} y1={caret.y1} y2={caret.y2} />}
             </svg>
             {renderEditor(page)}
           </div>
