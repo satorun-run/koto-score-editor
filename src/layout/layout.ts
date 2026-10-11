@@ -496,7 +496,10 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
     // 縦方向の帯
     const marksH = marksHere.length > 0 || voltas.length > 0 || partName ? st.markSize * 1.6 : 0;
     if (pressBrackets.length > 0) headroom += PRESS_BRACKET_HEIGHT + 0.3;
-    const spanH = bandSpans.length > 0 ? 3.4 : 0;
+    // 波線（引き連・流し爪）は「サ〜〜ラ」のように口唱歌の並びの一部なので、口唱歌のある行では口唱歌と同じ高さに引く。
+    // 破線（指番号や「左」の継続）は、口唱歌より上の帯に引く
+    const inShokaRow = (s: Span) => hasShoka && s.kind === "wave";
+    const spanH = bandSpans.some((s) => !inShokaRow(s)) ? 3.4 : 0;
     const shokaH = hasShoka ? st.shokaSize * 1.35 : 0;
     const marksTop = y;
     const spanTop = marksTop + marksH;
@@ -555,7 +558,8 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
 
     // スパン
     for (const span of rowSpans) {
-      drawSpan(ctx, prims, span, geoms, first, last, left, systemRight, spanTop, spanH);
+      if (inShokaRow(span)) drawSpan(ctx, prims, span, geoms, first, last, left, systemRight, shokaTop, shokaH, true);
+      else drawSpan(ctx, prims, span, geoms, first, last, left, systemRight, spanTop, spanH);
     }
 
     // 標記・1番2番括弧・パート名
@@ -701,15 +705,28 @@ function beatGroups(offsets: readonly number[]): [number, number][] {
   return groups;
 }
 
+/** 音符の上に載せる押し手。合せ爪では、いちばん上の絃のもの（下の絃の押し手は、重ねた字の間に描く） */
 function pressOf(e: Event): StringRef["press"] {
-  return e.type === "note" ? e.strings.find((s) => s.press)?.press : undefined;
+  return e.type === "note" ? e.strings[0]?.press : undefined;
+}
+
+/** 合せ爪の、重ねた字の間に描く押し手の大きさ（音符の上に載せる押し手に対する比）と、取る高さ */
+const INNER_PRESS_SCALE = 0.8;
+function innerPressHeight(scale: number): number {
+  return (PRESS_HEIGHT * INNER_PRESS_SCALE + 0.3) * scale;
+}
+
+/** 合せ爪の高さ：重ねた字と、下の絃の押し手の分 */
+function chordHeight(e: Event, size: number, scale: number): number {
+  if (e.type !== "note" || e.strings.length < 2) return size;
+  const inner = e.strings.slice(1).filter((s) => s.press).length;
+  return size * chordSubScale(e.strings.length) * e.strings.length + inner * innerPressHeight(scale);
 }
 
 /** ベースラインの下端から、上記号を含めた上端までの高さ */
 function eventTopExtent(st: Style, e: Event, scale: number): number {
   const size = glyphSize(st, e, scale);
-  const count = e.type === "note" ? e.strings.length : 1;
-  const glyphH = count > 1 ? size * chordSubScale(count) * count : size;
+  const glyphH = chordHeight(e, size, scale);
   const above = (pressOf(e) ? PRESS_HEIGHT + 0.4 : 0) + (e.above?.length ?? 0) * st.supSize * 1.1;
   const sup = (e.sup?.length ?? 0) > 0 ? st.supSize * 0.7 : 0;
   return glyphH + Math.max(above * scale, sup * scale);
@@ -765,11 +782,19 @@ function drawEvent(
     const count = e.strings.length;
     const sub = size * chordSubScale(count);
     const gx = cx + (e.chord === "arc" ? 0.4 * scale : 0);
-    top = baseY - sub * count;
-    e.strings.forEach((s, i) => {
-      prims.push(stringPrim(st, layer, gx, top + sub * (i + 1), s.n, sub, role, sx));
-    });
-    const h = sub * count;
+    // 下から積む。押し手の付いた下の絃は、その字のすぐ上に小さい三角を置き、その分だけ上の字を持ち上げる
+    let cursor = baseY;
+    for (let i = count - 1; i >= 0; i--) {
+      const string = e.strings[i]!;
+      prims.push(stringPrim(st, layer, gx, cursor, string.n, sub, role, sx));
+      cursor -= sub;
+      if (i > 0 && string.press) {
+        drawPress(prims, techLayer, gx, cursor + sub * 0.06, string.press, scale * INNER_PRESS_SCALE, st.lineWidth);
+        cursor -= innerPressHeight(scale);
+      }
+    }
+    top = cursor;
+    const h = baseY - top;
     const halfW = (sub * sx) / 2;
     if (e.chord === "arc") {
       const bulge = 1.3 * scale;
@@ -1044,6 +1069,8 @@ function drawSpan(
   right: number,
   top: number,
   height: number,
+  /** 口唱歌と同じ行に引く。終点の音符の口唱歌と重ならないよう、終点の字の手前で止める */
+  inline = false,
 ): void {
   const { st } = ctx;
   const layer = "techniques";
@@ -1072,7 +1099,14 @@ function drawSpan(
     prims.push({ t: "text", layer, x: x1, y: textY, text: span.startText, size, font: "sub", anchor: "middle" });
     x1 += (textEm(span.startText) * size) / 2 + 0.4;
   }
-  if (to && span.endText) {
+  if (to && inline) {
+    // 終点の字の左端の手前に、終点の文字を右寄せで置き、波線はその手前まで
+    x2 = to.left - 0.4;
+    if (span.endText) {
+      prims.push({ t: "text", layer, x: x2, y: textY, text: span.endText, size, font: "sub", anchor: "end" });
+      x2 -= textEm(span.endText) * size + 0.4;
+    }
+  } else if (to && span.endText) {
     prims.push({ t: "text", layer, x: x2, y: textY, text: span.endText, size, font: "sub", anchor: "middle" });
     x2 -= (textEm(span.endText) * size) / 2 + 0.4;
   }

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { NumInput } from "./NumInput";
 import type { Doc } from "../editor/commands";
 import { importMeasures, readSource, type ImportMode, type LoadedSource } from "../editor/importer";
 import { validateScore } from "../model/validate";
@@ -89,11 +90,11 @@ export function ImportDialog({ doc, apply, onClose }: Props) {
               <div className="inline">
                 <label>
                   最初の小節
-                  <input type="number" min={1} max={count} value={from} onChange={(e) => setFrom(Math.floor(Number(e.target.value)))} />
+                  <NumInput min={1} max={count} value={from} onChange={(e) => setFrom(Math.floor(Number(e.target.value)))} />
                 </label>
                 <label>
                   最後の小節
-                  <input type="number" min={1} max={count} value={to} onChange={(e) => setTo(Math.floor(Number(e.target.value)))} />
+                  <NumInput min={1} max={count} value={to} onChange={(e) => setTo(Math.floor(Number(e.target.value)))} />
                 </label>
               </div>
               <h2>入れる場所</h2>

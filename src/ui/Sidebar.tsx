@@ -1,4 +1,5 @@
 import type { Dispatch } from "react";
+import { NumInput } from "./NumInput";
 import {
   addOssia, addSpan, addVolta, beatGroupOfCurrent, currentEvent, patchEventAt, deleteOssia, deleteSpan, eventsAt, patchCurrent, patchMeasure, patchOssia, patchSpan,
   spansAtMeasure, type Doc, type Lines,
@@ -116,6 +117,7 @@ function Palette({ keymap, inputLines, dispatch }: Pick<Props, "keymap" | "input
         {button("prefix.kaki", "かき爪", "かき爪")}
         {button("prefix.wari", "わり爪", "わり爪")}
         {button("chord.style", "囲み", "合せ爪の囲みを切り替え")}
+        {button("chord.flip", "上下入替", "合せ爪の重ねの上下を入れ替え")}
       </div>
       <div className="palette">
         {SUP_MARKS.map((m) => button(`sup.${m}`, m, `右肩記号 ${m}`))}
@@ -191,26 +193,28 @@ function EventPanel({ event, next, dispatch }: { event: Event; next: Event | und
       </label>
       {event.type === "note" && (
         <>
-          <label>
-            押し手
-            <select
-              value={event.strings[0]?.press ?? 0}
-              onChange={(e) =>
-                patchNote((n) => {
-                  const first = n.strings[0];
-                  if (!first) return;
-                  const press = Number(e.target.value);
-                  if (press === 0) delete first.press;
-                  else first.press = press as 1 | 2 | 3;
-                })
-              }
-            >
-              <option value={0}>なし</option>
-              <option value={1}>一重（半音）</option>
-              <option value={2}>二重（一音）</option>
-              <option value={3}>三重（一音半）</option>
-            </select>
-          </label>
+          {event.strings.map((string, i) => (
+            <label key={i}>
+              {event.strings.length > 1 ? `押し手（${"壱弐三四五六七八九十斗為巾"[string.n - 1] ?? "？"}）` : "押し手"}
+              <select
+                value={string.press ?? 0}
+                onChange={(e) =>
+                  patchNote((n) => {
+                    const target = n.strings[i];
+                    if (!target) return;
+                    const press = Number(e.target.value);
+                    if (press === 0) delete target.press;
+                    else target.press = press as 1 | 2 | 3;
+                  })
+                }
+              >
+                <option value={0}>なし</option>
+                <option value={1}>一重（半音）</option>
+                <option value={2}>二重（一音）</option>
+                <option value={3}>三重（一音半）</option>
+              </select>
+            </label>
+          ))}
           <label>
             前記号
             <select
@@ -282,11 +286,11 @@ function BeatPanel({ doc, dispatch }: Pick<Props, "doc" | "dispatch">) {
       <span>この拍の音符の並べ方（{group[1] - group[0] + 1}つの音符）</span>
       <label>
         表示範囲％
-        <input type="number" step={5} min={10} aria-label="この拍の表示範囲" placeholder="曲の設定" value={tune?.spread ?? ""} onChange={(e) => set("spread", e.target.value)} />
+        <NumInput step={5} min={10} emptyOk aria-label="この拍の表示範囲" placeholder="曲の設定" value={tune?.spread ?? ""} onChange={(e) => set("spread", e.target.value)} />
       </label>
       <label>
         字間mm
-        <input type="number" step={0.1} aria-label="この拍の字間" placeholder="曲の設定" value={tune?.gap ?? ""} onChange={(e) => set("gap", e.target.value)} />
+        <NumInput step={0.1} emptyOk aria-label="この拍の字間" placeholder="曲の設定" value={tune?.gap ?? ""} onChange={(e) => set("gap", e.target.value)} />
       </label>
     </div>
   );
@@ -302,11 +306,11 @@ function ShiftFields({ label, value, onChange }: { label: string; value: [number
       <span>{label}（mm）</span>
       <label>
         右へ
-        <input type="number" step={0.1} aria-label={`${label} 右へ`} value={dx} onChange={(e) => set(read(e.target.value), dy)} />
+        <NumInput step={0.1} aria-label={`${label} 右へ`} value={dx} onChange={(e) => set(read(e.target.value), dy)} />
       </label>
       <label>
         下へ
-        <input type="number" step={0.1} aria-label={`${label} 下へ`} value={dy} onChange={(e) => set(dx, read(e.target.value))} />
+        <NumInput step={0.1} aria-label={`${label} 下へ`} value={dy} onChange={(e) => set(dx, read(e.target.value))} />
       </label>
     </div>
   );
@@ -370,9 +374,9 @@ function MeasurePanel({ doc, measure, dispatch }: { doc: Doc; measure: Measure; 
       </label>
       <label>
         この小節から、1段の小節数を変える
-        <input
-          type="number"
+        <NumInput
           min={1}
+          emptyOk
           value={measure.measuresPerSystem ?? ""}
           placeholder="変えない"
           onChange={(e) =>

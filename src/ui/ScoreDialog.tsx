@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { NumInput } from "./NumInput";
 import { loadDefaultStyle, parseSettings, saveDefaultStyle, toSettingsFile } from "../editor/defaults";
 import { exportTextFile } from "../editor/files";
 import { resolveStyle, type Style } from "../layout/style";
@@ -236,21 +237,21 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
           </label>
           <label>
             1段の小節数
-            <input type="number" min={1} value={settings.measuresPerSystem} onChange={(e) => onChange((s) => { s.settings.measuresPerSystem = Math.round(number(e.target.value, 4, 1)); })} />
+            <NumInput min={1} value={settings.measuresPerSystem} onChange={(e) => onChange((s) => { s.settings.measuresPerSystem = Math.round(number(e.target.value, 4, 1)); })} />
           </label>
           <label>
             1ページの段数
-            <input type="number" min={1} value={settings.systemsPerPage} onChange={(e) => onChange((s) => { s.settings.systemsPerPage = Math.round(number(e.target.value, 7, 1)); })} />
+            <NumInput min={1} value={settings.systemsPerPage} onChange={(e) => onChange((s) => { s.settings.systemsPerPage = Math.round(number(e.target.value, 7, 1)); })} />
           </label>
 
           <h2>寸法と書体</h2>
-          <label>譜面領域の幅（mm）<input type="number" min={50} value={style.areaWidth} onChange={(e) => setStyle("areaWidth", number(e.target.value, 180, 50))} /></label>
-          <label>譜面領域の高さ（mm）<input type="number" min={50} value={style.areaHeight} onChange={(e) => setStyle("areaHeight", number(e.target.value, 250, 50))} /></label>
+          <label>譜面領域の幅（mm）<NumInput min={50} value={style.areaWidth} onChange={(e) => setStyle("areaWidth", number(e.target.value, 180, 50))} /></label>
+          <label>譜面領域の高さ（mm）<NumInput min={50} value={style.areaHeight} onChange={(e) => setStyle("areaHeight", number(e.target.value, 250, 50))} /></label>
           <label>
             段の送り（mm。段から次の段までの距離を固定する。0 なら自動）
-            <input type="number" min={0} step={0.5} value={style.systemPitch} onChange={(e) => setStyle("systemPitch", number(e.target.value, 0, 0))} />
+            <NumInput min={0} step={0.5} value={style.systemPitch} onChange={(e) => setStyle("systemPitch", number(e.target.value, 0, 0))} />
           </label>
-          <label>絃名の大きさ（mm）<input type="number" min={2} step={0.5} value={style.noteSize} onChange={(e) => setStyle("noteSize", number(e.target.value, 6.5, 2))} /></label>
+          <label>絃名の大きさ（mm）<NumInput min={2} step={0.5} value={style.noteSize} onChange={(e) => setStyle("noteSize", number(e.target.value, 6.5, 2))} /></label>
           <table className="sizes">
             <thead>
               <tr><th>絃名の大きさ（四分音符を100として）</th><th>縦（%）</th><th>横（%）</th></tr>
@@ -261,8 +262,7 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
                   <th>{name}</th>
                   {(["sizeByLines", "widthByLines"] as const).map((key) => (
                     <td key={key}>
-                      <input
-                        type="number"
+                      <NumInput
                         min={20}
                         max={120}
                         aria-label={`${name}の${key === "sizeByLines" ? "縦" : "横"}`}
@@ -283,11 +283,11 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
           <h2>1拍に複数の音符があるとき</h2>
           <label>
             表示範囲（拍の幅に対する％。100 を超えると、その分だけ隣の拍へはみ出して、隣の音符と重なってよい）
-            <input type="number" min={10} step={5} value={style.groupSpread} onChange={(e) => setStyle("groupSpread", number(e.target.value, 100, 10))} />
+            <NumInput min={10} step={5} value={style.groupSpread} onChange={(e) => setStyle("groupSpread", number(e.target.value, 100, 10))} />
           </label>
           <label>
             字間（mm。字と字の間隔。マイナスにすると字どうしを重ねて詰める）
-            <input type="number" step={0.1} value={style.groupGap} onChange={(e) => setStyle("groupGap", Number.isFinite(Number(e.target.value)) && e.target.value !== "" ? Number(e.target.value) : 0.5)} />
+            <NumInput step={0.1} value={style.groupGap} onChange={(e) => setStyle("groupGap", Number.isFinite(Number(e.target.value)) && e.target.value !== "" ? Number(e.target.value) : 0.5)} />
           </label>
           <p className="hint">拍ごとに変えたいときは、その拍の音符にカーソルを置き、右のパネルの「この拍の音符の並べ方」で指定します。</p>
           <h2>記号の位置</h2>
@@ -301,11 +301,10 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
                   <th>{name}</th>
                   {[0, 1].map((axis) => (
                     <td key={axis}>
-                      <input
-                        type="number"
+                      <NumInput
                         step={0.1}
                         aria-label={`${name} ${axis === 0 ? "右へ" : "下へ"}`}
-                        value={style[key][axis]}
+                        value={style[key][axis] ?? 0}
                         onChange={(e) => {
                           const next: [number, number] = [...style[key]];
                           next[axis] = Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0;

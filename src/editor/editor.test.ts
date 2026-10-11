@@ -58,11 +58,14 @@ describe("音符の入力", () => {
 });
 
 describe("属性の変更", () => {
-  it("合せ爪：絃を足すと番号順に重なり、左弧が付く。同じ絃でもう一度押すと外れる", () => {
-    let s = run(start(), "string.5", "chord.1");
+  it("合せ爪：入れた順に上から重なり、左弧が付く。同じ絃でもう一度押すと外れる", () => {
+    let s = run(start(), "string.1", "chord.5");
     expect(currentEvent(s.doc)).toMatchObject({ strings: [{ n: 1 }, { n: 5 }], chord: "arc" });
     s = run(s, "chord.style");
     expect(currentEvent(s.doc)).toMatchObject({ chord: "circle" });
+    // 上下を入れ替える
+    s = run(s, "chord.flip");
+    expect(currentEvent(s.doc)).toMatchObject({ strings: [{ n: 5 }, { n: 1 }] });
     s = run(s, "chord.1");
     const event = currentEvent(s.doc)!;
     expect(event).toMatchObject({ strings: [{ n: 5 }] });
@@ -81,6 +84,17 @@ describe("属性の変更", () => {
       seen.push(press());
     }
     expect(seen).toEqual([1, 2, 3, undefined]);
+  });
+
+  it("合せ爪では、下の絃の押し手を別に切り替えられる", () => {
+    // 巾の下に為を重ね、為に二重押し
+    let s = run(start(), "string.13", "chord.next", "string.12", "press.lower", "press.lower");
+    expect(currentEvent(s.doc)).toMatchObject({ strings: [{ n: 13 }, { n: 12, press: 2 }] });
+    s = run(s, "press");
+    expect(currentEvent(s.doc)).toMatchObject({ strings: [{ n: 13, press: 1 }, { n: 12, press: 2 }] });
+    // 絃が1つだけの音符では、下の絃の押し手は働かない
+    const single = run(start(), "string.9");
+    expect(run(single, "press.lower")).toBe(single);
   });
 
   it("右肩記号・上記号・前記号は押すたびに付け外しする", () => {
@@ -150,9 +164,10 @@ describe("小節の操作", () => {
 
 describe("速く入力するための操作", () => {
   it("合せ爪：「重ねる」のあとに押した絃が手前の音符に重なる。待ち状態は1回で解ける", () => {
-    let s = run(start(), "string.5", "chord.next");
+    // 上の絃を先に打ち、「重ねる」のあとに下の絃を打つ
+    let s = run(start(), "string.1", "chord.next");
     expect(s.chordArmed).toBe(true);
-    s = run(s, "string.1");
+    s = run(s, "string.5");
     expect(s.chordArmed).toBe(false);
     expect(strings(s)).toEqual(["1+5"]);
     s = run(s, "string.3");

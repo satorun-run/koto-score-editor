@@ -1,4 +1,5 @@
 import { useRef, type CSSProperties } from "react";
+import { NumInput } from "./NumInput";
 import type { Style } from "../layout/style";
 
 /** 元画像（スキャン）の表示設定。SPEC.md 6.1 */
@@ -57,8 +58,7 @@ export function ReferenceBar({ state, onChange, style, onStyle }: BarProps) {
   const num = (label: string, value: number, apply: (n: number) => void, step = 0.5, title?: string) => (
     <label title={title}>
       {label}
-      <input
-        type="number"
+      <NumInput
         step={step}
         value={value}
         onChange={(e) => { const n = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(n)) apply(n); }}

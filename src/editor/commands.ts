@@ -173,6 +173,14 @@ function updateCurrentNote(doc: Doc, fn: (note: Note) => void | false): Doc | nu
   return updateCurrent(doc, (event) => (event.type === "note" ? fn(event) : false));
 }
 
+/** 合せ爪の重ねの順（上下）を逆にする */
+export function flipChord(doc: Doc): Doc | null {
+  return updateCurrentNote(doc, (note) => {
+    if (note.strings.length < 2) return false;
+    note.strings.reverse();
+  });
+}
+
 /** 合せ爪：手前の音符に絃を足す。すでにある絃なら外す */
 export function toggleChordString(doc: Doc, n: number): Doc | null {
   return updateCurrentNote(doc, (note) => {
@@ -181,8 +189,8 @@ export function toggleChordString(doc: Doc, n: number): Doc | null {
       if (note.strings.length === 1) return false;
       note.strings.splice(at, 1);
     } else {
+      // 入れた順に上から重ねる（足した絃は下に付く）。上下は「重ねの上下を入れ替え」で直せる
       note.strings.push({ n });
-      note.strings.sort((a, b) => a.n - b.n);
     }
     if (note.strings.length > 1) note.chord ??= "arc";
     else delete note.chord;
@@ -239,13 +247,18 @@ export function makeDottedPair(doc: Doc): Doc | null {
   });
 }
 
-export function cyclePress(doc: Doc): Doc | null {
+/**
+ * 押し手を なし→一重→二重→三重→なし と切り替える。
+ * which が "top" なら（合せ爪の）いちばん上の絃、"bottom" ならいちばん下の絃
+ */
+export function cyclePress(doc: Doc, which: "top" | "bottom" = "top"): Doc | null {
   return updateCurrentNote(doc, (note) => {
-    const first = note.strings[0];
-    if (!first) return false;
-    if (first.press === undefined) first.press = 1;
-    else if (first.press < 3) first.press = (first.press + 1) as 2 | 3;
-    else delete first.press;
+    if (which === "bottom" && note.strings.length < 2) return false;
+    const target = which === "top" ? note.strings[0] : note.strings[note.strings.length - 1];
+    if (!target) return false;
+    if (target.press === undefined) target.press = 1;
+    else if (target.press < 3) target.press = (target.press + 1) as 2 | 3;
+    else delete target.press;
   });
 }
 

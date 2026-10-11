@@ -70,7 +70,9 @@ export function performAction(input: EditorState, id: string): EditorState {
     case "string":
       return run(cmd.insertEvent(doc, { type: "note", n: Number(arg) }, state.inputLines));
     case "chord":
-      return arg === "style" ? run(cmd.cycleChordStyle(doc)) : run(cmd.toggleChordString(doc, Number(arg)));
+      if (arg === "style") return run(cmd.cycleChordStyle(doc));
+      if (arg === "flip") return run(cmd.flipChord(doc));
+      return run(cmd.toggleChordString(doc, Number(arg)));
     case "sign":
       return run(cmd.insertEvent(doc, { type: "sign", sign: arg }, state.inputLines));
     case "sup":
@@ -113,6 +115,8 @@ export function performAction(input: EditorState, id: string): EditorState {
       return run(cmd.pasteMeasure(doc, doc.score.measures[doc.cursor.mi - 1]));
     case "press":
       return run(cmd.cyclePress(doc));
+    case "press.lower":
+      return run(cmd.cyclePress(doc, "bottom"));
     case "move.left":
       return run(cmd.moveCursor(doc, -1));
     case "move.right":

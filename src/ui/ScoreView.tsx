@@ -72,6 +72,39 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragRef = useRef<Drag | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
+  /** いま表示欄の中央に見えているページ（0始まり） */
+  const [visiblePage, setVisiblePage] = useState(0);
+  const pagesRef = useRef<HTMLDivElement>(null);
+
+  // スクロールに合わせて、見えているページの番号を更新する
+  useEffect(() => {
+    const scroller = pagesRef.current?.closest(".canvas");
+    if (!(scroller instanceof HTMLElement)) return;
+    const update = () => {
+      const view = scroller.getBoundingClientRect();
+      const center = view.top + view.height / 2;
+      let best = 0;
+      let bestDistance = Infinity;
+      pageRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        // 表示欄の中央を含むページ。どのページも含まなければ、中央にいちばん近いページ
+        const distance = center < rect.top ? rect.top - center : center > rect.bottom ? center - rect.bottom : 0;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = i;
+        }
+      });
+      setVisiblePage(best);
+    };
+    update();
+    scroller.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      scroller.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [layout, zoom]);
   const svgs = useMemo(() => layout.pages.map((page) => renderSvg(page, style)), [layout, style]);
 
   const measureIndex = useMemo(() => new Map(score.measures.map((m, i) => [m.id, i])), [score]);
@@ -86,8 +119,11 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
   const currentId = cursorEvents[cursor.index - 1]?.id;
 
   useEffect(() => {
-    // カーソルが見える範囲の外にあるときだけ、譜面の表示欄を必要な分だけ送る。
-    // ブラウザ任せ（scrollIntoView）にすると、iPad の Safari では画面全体がずれてしまう
+    // カーソルを動かしたとき（音符の入力・移動・クリック）に、カーソルが見える範囲の外にあれば、
+    // 譜面の表示欄を必要な分だけ送る。ブラウザ任せ（scrollIntoView）にすると、iPad の Safari では画面全体がずれる。
+    //
+    // カーソルが動いていないのに組み直しが起きただけのとき（属性の変更、口唱歌や補助行の編集、設定の変更など）は送らない。
+    // そのとき見ている場所や編集している場所は、カーソルの位置とは限らないため
     const pos = caretPos.current;
     const pageEl = pos ? pageRefs.current[pos.page] : null;
     const scroller = pageEl?.closest(".canvas");
@@ -103,7 +139,8 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
     else if (bottom > view.bottom - margin) scroller.scrollTop += bottom - (view.bottom - margin);
     if (x < view.left + margin) scroller.scrollLeft -= view.left + margin - x;
     else if (x > view.right - margin) scroller.scrollLeft += x - (view.right - margin);
-  }, [cursor.mi, cursor.partId, cursor.index, cursor.ossia, layout, zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 上の理由で、組み直し（layout）や拡大率では動かさない
+  }, [cursor.mi, cursor.partId, cursor.index, cursor.ossia]);
 
   const laneKind = (lane: string): LaneKind => {
     const ref = parseLane(lane);
@@ -212,7 +249,10 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
   };
 
   return (
-    <div className="pages">
+    <div className="pages" ref={pagesRef}>
+      <div className="page-badge" aria-label="表示中のページ">
+        {Math.min(visiblePage, layout.pages.length - 1) + 1} / {layout.pages.length} ページ
+      </div>
       {layout.pages.map((page, pi) => {
         const mbox = page.measureBoxes.find((b) => b.measureId === measure?.id && b.partId === cursor.partId);
         const cbox = currentId ? page.boxes.find((b) => b.eventId === currentId) : undefined;
@@ -235,6 +275,7 @@ export function ScoreView({ score, layout, style, cursor, mark, overlay, keymap,
             className="page"
             style={{ width: page.width * zoom, height: page.height * zoom }}
           >
+            <div className="page-number">{pi + 1} ページ</div>
             {overlay && <ReferenceOverlay state={overlay} pageIndex={pi} pageWidth={page.width} zoom={zoom} />}
             <div className="page-art" dangerouslySetInnerHTML={{ __html: svgs[pi]! }} />
             <svg className="page-overlay" viewBox={`0 0 ${page.width} ${page.height}`}>

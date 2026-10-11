@@ -39,6 +39,7 @@ export const ACTIONS: ActionDef[] = [
   ...STRING_NAMES.map((name, i) => ({ id: `chord.${i + 1}`, label: `合せ爪に ${name} を足す`, group: "合せ爪" })),
   { id: "chord.next", label: "次に押す絃を手前の音符に重ねる", group: "合せ爪" },
   { id: "chord.style", label: "合せ爪の囲みを切り替え", group: "合せ爪" },
+  { id: "chord.flip", label: "合せ爪の重ねの上下を入れ替え", group: "合せ爪" },
 
   { id: "lines.more", label: "音価線を増やす（短く）", group: "音価" },
   { id: "lines.less", label: "音価線を減らす（長く）", group: "音価" },
@@ -48,6 +49,7 @@ export const ACTIONS: ActionDef[] = [
   { id: "pattern.dotted", label: "手前の2音を「付点八分＋十六分」にする", group: "音価" },
 
   { id: "press", label: "押し手（なし→一重→二重→三重）", group: "奏法記号" },
+  { id: "press.lower", label: "合せ爪の下の絃の押し手", group: "奏法記号" },
   { id: "prefix.kaki", label: "かき爪", group: "奏法記号" },
   { id: "prefix.wari", label: "わり爪", group: "奏法記号" },
   ...SUP_MARKS.map((m) => ({ id: `sup.${m}`, label: `右肩記号 ${m}`, group: "奏法記号" })),
@@ -103,6 +105,7 @@ export function defaultKeymap(preset: Preset): Keymap {
     "dot.event": key("Period", "."),
     "chord.next": key("NumpadAdd", "テンキー+"),
     "chord.style": key("KeyC", "C"),
+    "chord.flip": key("KeyC", "C", { shift: true }),
 
     "lines.more": key("ArrowDown", "↓"),
     "lines.less": key("ArrowUp", "↑"),
@@ -111,6 +114,7 @@ export function defaultKeymap(preset: Preset): Keymap {
     "pattern.dotted": key("KeyQ", "Q"),
 
     press: key("KeyP", "P"),
+    "press.lower": key("KeyP", "P", { shift: true }),
     "prefix.kaki": key("KeyK", "K"),
     "prefix.wari": key("KeyW", "W"),
     "sup.2": key("Digit2", "2"),

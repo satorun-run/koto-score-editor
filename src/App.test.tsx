@@ -56,14 +56,15 @@ describe("編集画面", () => {
 
   it("テンキーだけで合せ爪と付点まで打てる", () => {
     render(<App />);
-    press("Numpad5", "5");
+    press("Numpad1", "1");
     press("NumpadAdd", "+");
     expect(screen.getByText(/次に押す絃を重ねます/)).toBeTruthy();
-    press("Numpad1", "1");
+    press("Numpad5", "5");
     press("ArrowDown", "ArrowDown");
     press("Numpad7", "7");
     press("NumpadDecimal", ".");
-    expect(drawnNotes()).toEqual(["壱", "五", "七"]);
+    // 重ねた字は下から順に描く
+    expect(drawnNotes()).toEqual(["五", "壱", "七"]);
     // ↓ は手前の音符（合せ爪）を八分にし、次の七も八分で入る
     expect(document.querySelectorAll(".page-art #durations line")).toHaveLength(2);
     expect(document.querySelectorAll(".page-art #durations circle")).toHaveLength(1);

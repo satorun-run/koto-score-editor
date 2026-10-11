@@ -532,6 +532,63 @@ describe("レイアウト", () => {
     expect(box2.y - arc2.y).toBeLessThan(2);
   });
 
+  it("合せ爪の下の絃の押し手は、重ねた字の間に描き、その分だけ上の字が上がる", () => {
+    const make = (lowerPress: boolean) => {
+      const score = loadSample("rokudan-excerpt");
+      score.measures = [{
+        id: "c", content: { koto: { events: [
+          { id: "c1", type: "note", strings: [{ n: 13 }, lowerPress ? { n: 12, press: 2 } : { n: 12 }], lines: 0, dots: 0 },
+          { id: "c2", type: "rest", lines: 0, dots: 0 },
+          { id: "c3", type: "rest", lines: 0, dots: 0 },
+          { id: "c4", type: "rest", lines: 0, dots: 0 },
+        ] } },
+      }];
+      score.spans = [];
+      const page = layoutScore(score, { header: false }).pages[0]!;
+      const glyphs = page.prims.flatMap((p) => (p.t === "text" && p.layer === "notes-koto" ? [p] : []));
+      const triangles = page.prims.flatMap((p) => (p.t === "path" && p.layer === "techniques" && p.d.endsWith("Z") ? [p] : []));
+      return { upper: glyphs.find((g) => g.text === "巾")!, lower: glyphs.find((g) => g.text === "為")!, triangles };
+    };
+    const plain = make(false);
+    const pressed = make(true);
+    expect(plain.triangles).toHaveLength(0);
+    expect(pressed.triangles).toHaveLength(1);
+    const tri = pressed.triangles[0]!;
+    // 三角は黒（二重押し）で、上の字と下の字の間にある
+    expect(tri.fill).toBe(true);
+    expect(tri.y).toBeGreaterThan(pressed.upper.y);
+    expect(tri.y).toBeLessThan(pressed.lower.y);
+    // 字どうしの間が、三角の分だけ広がる
+    const gap = (r: typeof plain) => r.lower.y - r.upper.y;
+    expect(gap(pressed)).toBeGreaterThan(gap(plain) + 0.8);
+  });
+
+  it("波線は、口唱歌のある行では口唱歌と同じ高さに、ない行では絃名の上の帯に引く", () => {
+    const waveOf = (withShoka: boolean) => {
+      const score = loadSample("rokudan-excerpt");
+      if (!withShoka) {
+        for (const m of score.measures) {
+          const pm = m.content.koto!;
+          if ("events" in pm) delete pm.shoka;
+        }
+      }
+      const page = layoutScore(score).pages[0]!;
+      const waves = page.prims.flatMap((p) => (p.t === "path" && p.layer === "techniques" && /^M 0 0 q /.test(p.d) && !p.d.includes(" L ") ? [p] : []));
+      const shoka = page.prims.flatMap((p) => (p.t === "text" && p.layer === "shoka" ? [p] : []));
+      const start = boxOf(page.boxes, "m6e3");
+      // 始点の「サ」の右から始まる波線
+      const wave = waves.find((w) => w.x > start.x && w.x < start.x + start.w + 3)!;
+      return { wave, start, sameRowShoka: shoka.find((t) => Math.abs(t.y - wave.y) < 2) };
+    };
+    const withShoka = waveOf(true);
+    // 口唱歌の文字と同じ高さ（文字の下端より少し上が線の中心）
+    expect(withShoka.sameRowShoka).toBeDefined();
+    expect(withShoka.start.y - withShoka.wave.y).toBeLessThan(6);
+    const without = waveOf(false);
+    expect(without.wave).toBeDefined();
+    expect(without.wave.y).toBeLessThan(without.start.y);
+  });
+
   it("1ページの段数を超えたら改ページする", () => {
     const score = loadSample("rokudan-excerpt");
     score.settings.systemsPerPage = 1;
