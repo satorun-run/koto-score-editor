@@ -877,18 +877,34 @@ function drawPress(prims: Prim[], layer: string, cx: number, bottom: number, pre
 }
 
 function drawBeams(prims: Prim[], st: Style, events: readonly Event[], geoms: readonly EventGeom[], baseY: number, scale: number, layer = "durations"): void {
-  events.forEach((e, i) => {
-    const g = geoms[i]!;
-    const next = events[i + 1];
-    const nextG = geoms[i + 1];
-    // 拍の中に置く付点には音価線を引かない
-    if (e.type === "dot") return;
-    for (let k = 1; k <= e.lines; k++) {
-      const y = baseY + (0.5 + (k - 1) * st.beamGap) * scale;
-      const joined = next?.joinPrev && nextG && next.lines >= k && next.type !== "dot";
-      prims.push({ t: "line", layer, x1: g.left, y1: y, x2: joined ? nextG.left : g.right, y2: y, width: st.beamWidth * scale });
+  /** つながっていない音価線どうしの間に、必ず空ける幅。線の切れ目が拍のまとまりを表すので、字が重なっても詰めない */
+  const minGap = 0.7 * scale;
+  for (let k = 1; k <= 3; k++) {
+    // この本数目の線を持つ音符ごとの、線の左端・右端・「次の音符の線とつながっているか」
+    const segments: { x1: number; x2: number; joined: boolean; index: number }[] = [];
+    events.forEach((e, i) => {
+      // 拍の中に置く付点には音価線を引かない
+      if (e.type === "dot" || e.lines < k) return;
+      const g = geoms[i]!;
+      const next = events[i + 1];
+      const nextG = geoms[i + 1];
+      const joined = !!next?.joinPrev && !!nextG && next.lines >= k && next.type !== "dot";
+      segments.push({ x1: g.left, x2: joined ? nextG!.left : g.right, joined, index: i });
+    });
+    // 隣り合う音符の線がつながっていないのに近すぎる・重なるときは、間の中央で両方を切り詰める
+    for (let n = 0; n + 1 < segments.length; n++) {
+      const a = segments[n]!;
+      const b = segments[n + 1]!;
+      if (a.joined || b.index !== a.index + 1 || b.x1 - a.x2 >= minGap) continue;
+      const mid = (a.x2 + b.x1) / 2;
+      a.x2 = Math.max(a.x1 + minGap, mid - minGap / 2);
+      b.x1 = Math.min(b.x2 - minGap, Math.max(a.x2 + minGap, mid + minGap / 2));
     }
-  });
+    const y = baseY + (0.5 + (k - 1) * st.beamGap) * scale;
+    for (const seg of segments) {
+      if (seg.x2 > seg.x1) prims.push({ t: "line", layer, x1: seg.x1, y1: y, x2: seg.x2, y2: y, width: st.beamWidth * scale });
+    }
+  }
 }
 
 /** 前小節くり返し */

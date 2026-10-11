@@ -421,6 +421,19 @@ describe("レイアウト", () => {
       expect(wide.z1).toBeCloseTo(base.z1!);
     });
 
+    it("かたまりが広がって隣と重なっても、つながっていない音価線の間にはすき間が残る", () => {
+      for (const groupSpread of [100, 110, 130]) {
+        const page = layoutScore(crowdedScore(), { header: false, groupSpread }).pages[0]!;
+        const lines = page.prims.flatMap((p) => (p.t === "line" && p.layer === "durations" ? [p] : [])).sort((a, b) => a.x1 - b.x1);
+        // 拍ごとに1本（2つの八分がつながった線）で、4本。隣の線との間は 0.7mm 以上空く
+        expect(lines).toHaveLength(8);
+        const groups = [0, 2, 4, 6].map((i) => ({ x1: lines[i]!.x1, x2: lines[i + 1]!.x2 }));
+        groups.slice(1).forEach((g, i) => expect(g.x1 - groups[i]!.x2).toBeGreaterThanOrEqual(0.7 - 1e-6));
+        // 同じ拍の中の2つはつながったまま
+        [0, 2, 4, 6].forEach((i) => expect(lines[i + 1]!.x1).toBeCloseTo(lines[i]!.x2));
+      }
+    });
+
     it("拍ごとの指定は、その拍だけに効く", () => {
       const score = crowdedScore();
       const base = xs(score);
