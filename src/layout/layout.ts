@@ -297,31 +297,102 @@ function layoutSystem(ctx: Ctx, plan: SystemPlan, isFirst: boolean): SystemResul
         return { onset, end, x0, x1: tm.x(Math.min(end, Math.floor(onset + 1e-9) + 1)), slotEnd: tm.x(end) };
       });
       // 1拍を分ける音符は、時間に比例して散らさず、字を寄せてひとかたまりにし、その範囲の中央に置く
-      for (const [i, j] of beatGroups(offsets)) {
+      const groups = beatGroups(offsets);
+      const innerLeft = mx.get(mi)! + st.measurePad;
+      const innerRight = mx.get(mi)! + mw.get(mi)! - st.measurePad;
+      groups.forEach(([i, j], gi) => {
         const beat = Math.floor(list[i]!.onset + 1e-9);
-        if (j > i) {
-          const left = list[i]!.x0;
-          const right = tm.x(Math.min(list[j]!.end, beat + 1));
-          const units = events.slice(i, j + 1).map((e) => unitWidth(st, e));
-          const total = units.reduce((sum, u) => sum + u, 0);
-          // 入りきらないときは、かたまり全体を同じ割合で詰める
-          const span = right - left;
-          const lastUnit = units[units.length - 1]!;
-          // 入りきらないときは、字の幅は変えずに字と字の間隔を詰め、字どうしを重ねる。
-          // 両端の字が拍からはみ出さないよう、最初の字を左端、最後の字を右端に合わせる
-          const step = total > span ? Math.max(0, (span - lastUnit) / (total - lastUnit)) : 1;
-          // 字の4分の3以上が隠れるほど詰まったら知らせる
-          if (step < 0.25) crowded.add(mi);
-          // 余裕があれば拍の中央へ。付点で始まるかたまりは前の音符の続きなので、左から並べる
-          const lead = total > span || events[i]!.type === "dot" ? 0 : (span - total) / 2;
-          let x = left + lead;
-          for (let k = i; k <= j; k++) {
-            list[k]!.x0 = x;
-            list[k]!.x1 = x + units[k - i]!;
-            x += units[k - i]! * step;
+        if (j === i) return;
+        let left = list[i]!.x0;
+        let right = tm.x(Math.min(list[j]!.end, beat + 1));
+        const units = events.slice(i, j + 1).map((e) => unitWidth(st, e));
+        const total = units.reduce((sum, u) => sum + u, 0);
+
+        // 拍に入りきらないときは、まず両隣の空き（隣の字までのすき間）を使って、かたまりを拍の外へ広げる。
+        // 拍の割り付けは変えないので、隣の拍の字は動かない
+        if (total > right - left) {
+          const prev = groups[gi - 1];
+          const next = groups[gi + 1];
+          // 隣が1つだけの音符なら、その音符を自分の拍の端まで寄せてもらえる分まで。
+          // 隣もかたまりなら、その拍には入り込まない
+          const single = (g: [number, number] | undefined) => (g && g[0] === g[1] ? g[0] : undefined);
+          const prevSingle = single(prev);
+          const nextSingle = single(next);
+          const unitOf = (index: number) => unitWidth(st, events[index]!);
+          const leftLimit = !prev
+            ? innerLeft
+            : prevSingle !== undefined
+              ? Math.min(left, Math.max(innerLeft, list[prevSingle]!.x0 + unitOf(prevSingle)))
+              : Math.max(list[prev[1]]!.x1, left);
+          const rightLimit = !next
+            ? innerRight
+            : nextSingle !== undefined
+              ? Math.max(right, Math.min(innerRight, tm.x(Math.min(list[nextSingle]!.end, beat + 2)) - unitOf(nextSingle)))
+              : right;
+          const roomLeft = Math.max(0, left - leftLimit);
+          const roomRight = Math.max(0, rightLimit - right);
+          const need = total - (right - left);
+          // 左右に半分ずつ。片側が足りなければ、もう片側で補う
+          let takeLeft = Math.min(roomLeft, need / 2);
+          const takeRight = Math.min(roomRight, need - takeLeft);
+          takeLeft = Math.min(roomLeft, need - takeRight);
+          left -= takeLeft;
+          right += takeRight;
+          // 広げた先に隣の字が掛かるなら、隣の音符を拍の中で端へ寄せる（拍の中央から少しずれる）
+          if (prevSingle !== undefined) {
+            const cell = list[prevSingle]!;
+            const unit = unitOf(prevSingle);
+            if ((cell.x0 + cell.x1) / 2 + unit / 2 > left) {
+              cell.x1 = left;
+              cell.x0 = left - unit;
+            }
+          }
+          if (nextSingle !== undefined) {
+            const cell = list[nextSingle]!;
+            const unit = unitOf(nextSingle);
+            if ((cell.x0 + cell.x1) / 2 - unit / 2 < right) {
+              cell.x0 = right;
+              cell.x1 = right + unit;
+            }
           }
         }
-      }
+
+        const span = right - left;
+        // それでも入りきらない分は、字の幅は変えずに字と字を重ねる。
+        // 前記号（かき爪・わり爪）や右肩記号が隣の字に掛からないよう、記号のない所から先に重ねる
+        const overlaps = new Array<number>(units.length - 1).fill(0);
+        let excess = Math.max(0, total - span);
+        if (excess > 0) {
+          const marked = (k: number) => {
+            const before = events[i + k]!;
+            const after = events[i + k + 1]!;
+            return (after.type === "note" && !!after.prefix) || (before.sup?.length ?? 0) > 0;
+          };
+          for (const pick of [(k: number) => !marked(k), () => true]) {
+            const gaps = overlaps.map((_, k) => k).filter((k) => pick(k));
+            // 1か所で重ねてよいのは、手前の字の幅の9割まで
+            const room = (k: number) => units[k]! * 0.9 - overlaps[k]!;
+            let open = gaps.filter((k) => room(k) > 1e-9);
+            while (excess > 1e-9 && open.length > 0) {
+              const share = Math.min(excess / open.length, ...open.map(room));
+              for (const k of open) overlaps[k]! += share;
+              excess -= share * open.length;
+              open = open.filter((k) => room(k) > 1e-9);
+            }
+          }
+          // 字の4分の3以上が隠れるほど重なったら知らせる
+          if (overlaps.some((o, k) => o > units[k]! * 0.75)) crowded.add(mi);
+        }
+
+        // 余裕があれば拍の中央へ。付点で始まるかたまりは前の音符の続きなので、左から並べる
+        const lead = total > span || events[i]!.type === "dot" ? 0 : (span - total) / 2;
+        let x = left + lead;
+        for (let k = i; k <= j; k++) {
+          list[k]!.x0 = x;
+          list[k]!.x1 = x + units[k - i]!;
+          x += units[k - i]! - (overlaps[k - i] ?? 0);
+        }
+      });
       // 選択用の範囲は、次の音符の枠の手前まで
       list.forEach((cell, i) => {
         const next = list[i + 1];

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { downloadText, fileBase } from "../editor/files";
+import { describeSave, fileBase, saveTextFile, saveTextFiles } from "../editor/files";
 import { layoutScore } from "../layout/layout";
 import { resolveStyle } from "../layout/style";
 import type { Score } from "../model/types";
@@ -7,6 +7,8 @@ import { renderSvg, renderSystemSvg } from "../render/svg";
 
 interface Props {
   score: Score;
+  /** 書き出しの結果を知らせる文 */
+  onDone: (message: string) => void;
   onClose: () => void;
 }
 
@@ -27,7 +29,7 @@ export function parsePageList(text: string, pageCount: number): number[] | null 
 }
 
 /** SVGの書き出し。SPEC.md 7.1 */
-export function ExportDialog({ score, onClose }: Props) {
+export function ExportDialog({ score, onDone, onClose }: Props) {
   const [range, setRange] = useState<Range>("all");
   const [pageText, setPageText] = useState("1");
   const [header, setHeader] = useState(() => resolveStyle(score).header);
@@ -51,9 +53,15 @@ export function ExportDialog({ score, onClose }: Props) {
   };
   const count = range === "systems" ? systemCount : (pages?.length ?? 0);
 
-  const run = () => {
-    // 続けて保存するとブラウザが取りこぼすので少し間を空ける
-    files().forEach((file, i) => setTimeout(() => downloadText(file.name, file.svg, "image/svg+xml"), i * 300));
+  const run = async () => {
+    const list = files();
+    // 1つならファイルの保存先を、複数ならまとめて入れるフォルダを選ぶ
+    const result =
+      list.length === 1
+        ? await saveTextFile(list[0]!.name, list[0]!.svg, "image/svg+xml", "SVG画像")
+        : await saveTextFiles(list.map((f) => ({ name: f.name, text: f.svg })), "image/svg+xml");
+    if (result.status === "cancelled") return;
+    onDone(result.status === "saved" && list.length > 1 ? `フォルダ「${result.name}」に ${list.length} 個のSVGを書き出しました。` : describeSave(result));
     onClose();
   };
 
@@ -99,8 +107,13 @@ export function ExportDialog({ score, onClose }: Props) {
             文字はテキストのまま出力します。同じフォントが入っているPCの Illustrator では、開いたあと
             「書式 → アウトラインを作成」で図形にできます。
           </p>
-          {count > 1 && <p className="hint">{count} 個のファイルを続けて保存します。ブラウザが「複数のファイルのダウンロード」の許可を求めたら、許可してください。</p>}
-          <button type="button" className="start" disabled={count === 0} onClick={run}>
+          {count > 1 && (
+            <p className="hint">
+              {count} 個のファイルを書き出します。次の画面で、まとめて入れるフォルダを選んでください。
+              フォルダを選べないブラウザ（iPad など）では、1つずつダウンロードとして保存します。
+            </p>
+          )}
+          <button type="button" className="start" disabled={count === 0} onClick={() => void run()}>
             {count === 0 ? "ページの指定が正しくありません" : `${count} ファイルを書き出す`}
           </button>
         </div>

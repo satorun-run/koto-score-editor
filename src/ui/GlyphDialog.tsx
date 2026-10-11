@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { downloadText } from "../editor/files";
+import { exportTextFile } from "../editor/files";
 import { parseGlyphSet, parseSvgGlyph } from "../editor/glyphs";
 import { TRACED_GLYPHS, type GlyphDef, type GlyphSet, type Style } from "../layout/style";
 
@@ -78,7 +78,7 @@ export function GlyphDialog({ style, onStyle, onClose }: Props) {
             </button>
           )}
           <button type="button" onClick={() => setRef.current?.click()}>字形セットを読み込む</button>
-          <button type="button" disabled={count === 0} onClick={() => downloadText("koto.glyphs.json", JSON.stringify(set), "application/json")}>
+          <button type="button" disabled={count === 0} onClick={() => void exportTextFile("koto.glyphs.json", JSON.stringify(set), "箏譜エディタの字形セット")}>
             字形セットを書き出す
           </button>
           <button type="button" disabled={count === 0} onClick={() => { setMessages([]); onStyle("glyphs", null); }}>すべてフォントの文字にする</button>

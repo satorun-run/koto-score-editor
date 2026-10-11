@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { loadDefaultStyle, parseSettings, saveDefaultStyle, toSettingsFile } from "../editor/defaults";
-import { downloadText } from "../editor/files";
+import { exportTextFile } from "../editor/files";
 import { resolveStyle, type Style } from "../layout/style";
 import { HIRAJOSHI } from "../model/pitch";
 import { addPart, addTrack, moveTrack, patchScore, removePart, removeTrack, type Doc } from "../editor/commands";
@@ -97,7 +97,7 @@ export function ScoreDialog({ doc, apply, onClose }: Props) {
           >
             既定の設定を読み込む
           </button>
-          <button type="button" onClick={() => downloadText("koto-settings.json", JSON.stringify(toSettingsFile(settings.style ?? {}), null, 2), "application/json")}>
+          <button type="button" onClick={() => void exportTextFile("koto-settings.json", JSON.stringify(toSettingsFile(settings.style ?? {}), null, 2), "箏譜エディタの設定")}>
             設定をファイルに書き出す
           </button>
           <button type="button" onClick={() => settingsRef.current?.click()}>設定をファイルから読み込む</button>

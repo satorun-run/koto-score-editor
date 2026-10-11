@@ -204,3 +204,5 @@ body.resizing .canvas, body.resizing .refpane { pointer-events: none; }
 .shift > span { flex: 1 0 100%; }
 .fields .shift label { flex-direction: row; align-items: center; gap: 4px; flex: 0 0 auto; }
 .shift input { width: 5em; }
+
+.notice { color: var(--ink); }

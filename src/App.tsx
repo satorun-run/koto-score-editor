@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { blankScore, currentEvent, moveLaneItem, patchScore, putLaneItem } from "./editor/commands";
 import { loadDefaultStyle } from "./editor/defaults";
-import { downloadText, fileBase, loadAutosave, readScoreFile, saveAutosave } from "./editor/files";
+import { describeSave, fileBase, loadAutosave, readScoreFile, saveAutosave, saveTextFile } from "./editor/files";
 import { findAction, loadKeymap, saveKeymap, type Keymap } from "./editor/keymap";
 import { initialState, reducer } from "./editor/store";
 import { layoutScore } from "./layout/layout";
@@ -49,6 +49,8 @@ export function App() {
   const [zoom, setZoom] = useState(5);
   const [dialog, setDialog] = useState<"keymap" | "score" | "import" | "export" | "glyphs" | null>(null);
   const [ref, setRef] = useState<RefState>(INITIAL_REF);
+  /** 保存の結果など、下の帯に出す知らせ */
+  const [notice, setNotice] = useState("");
   /** 口唱歌・補助行の、まだ何も入っていない行も入力用に表示する */
   const [panes, setPanes] = useState(loadPanes);
   useEffect(() => {
@@ -126,7 +128,9 @@ export function App() {
     if (style.glyphs && file.settings.style?.glyphs === undefined) {
       file.settings.style = { ...file.settings.style, glyphs: style.glyphs };
     }
-    downloadText(`${fileBase(score.meta.title)}.koto.json`, JSON.stringify(file, null, 2), "application/json");
+    void saveTextFile(`${fileBase(score.meta.title)}.koto.json`, JSON.stringify(file, null, 2), "application/json", "箏譜エディタの楽譜").then(
+      (result) => setNotice(describeSave(result)),
+    );
   };
   return (
     <div className="app">
@@ -135,7 +139,7 @@ export function App() {
         <button type="button" onClick={newScore}>新規</button>
         <button type="button" onClick={() => fileRef.current?.click()}>開く</button>
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void openFile(f); e.target.value = ""; }} />
-        <button type="button" onClick={save}>保存</button>
+        <button type="button" onClick={save} title="保存先とファイル名を選んで、楽譜をファイルに保存します">保存</button>
         <button type="button" onClick={() => setDialog("import")} title="別の楽譜ファイルや下書きから小節を取り込みます">下書きの取り込み</button>
         <button type="button" onClick={() => setDialog("export")} title="Illustrator で開けるSVGを書き出します">SVG書き出し</button>
         <button type="button" onClick={() => window.print()} title="ブラウザの印刷機能で、紙やPDFに出します（確認用）">印刷・PDF</button>
@@ -197,6 +201,7 @@ export function App() {
         <span>小節 {cursor.mi + 1} / {score.measures.length}</span>
         {score.parts.length > 1 && <span>パート：{score.parts.find((p) => p.id === cursor.partId)?.name ?? cursor.partId}</span>}
         <span>次に入れる音価：{LINE_NAMES[state.inputLines]}</span>
+        {notice && <span className="notice" role="status">{notice}</span>}
         {state.chordArmed && <span className="armed">合せ爪：次に押す絃を重ねます</span>}
         {cursor.ossia !== undefined && <span className="armed">代替譜を編集中（譜面の音符をクリックで戻る）</span>}
         <span>{layout.pages.length} ページ</span>
@@ -205,7 +210,7 @@ export function App() {
       </footer>
 
       {dialog === "glyphs" && <GlyphDialog style={style} onStyle={setStyleValue} onClose={() => setDialog(null)} />}
-      {dialog === "export" && <ExportDialog score={score} onClose={() => setDialog(null)} />}
+      {dialog === "export" && <ExportDialog score={score} onDone={setNotice} onClose={() => setDialog(null)} />}
       {dialog === "import" && <ImportDialog doc={state.doc} apply={(fn) => dispatch({ type: "apply", fn })} onClose={() => setDialog(null)} />}
       {dialog === "keymap" && <KeymapDialog keymap={keymap} onChange={setKeymap} onClose={() => setDialog(null)} />}
       {dialog === "score" && (

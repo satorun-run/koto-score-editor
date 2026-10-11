@@ -174,11 +174,11 @@ describe("レイアウト", () => {
     const five = boxOf(page.boxes, "m3e2");
     const four = boxOf(page.boxes, "m3e3");
     const three = boxOf(page.boxes, "m3e4");
-    // 五と四は隣り合い、1拍の中に収まる。拍の幅は他の拍と変わらない
+    // 五と四は隣り合い、次の拍の三の手前に収まる
     expect(four.x).toBeCloseTo(five.x + five.w);
-    expect(five.x).toBeGreaterThanOrEqual(boxOf(page.boxes, "m3e1").x + beat - 1e-6);
+    expect(five.x).toBeGreaterThan(boxOf(page.boxes, "m3e1").x);
     expect(four.x).toBeLessThan(three.x);
-    expect(three.w).toBeCloseTo(beat);
+    expect(beat).toBeGreaterThan(0);
     // 時間に比例させた場合（付点八分は拍の 3/4）より、四は五に寄っている
     expect(five.w).toBeLessThan((three.x - five.x) * 0.75);
   });
@@ -219,11 +219,13 @@ describe("レイアウト", () => {
     const wide = measure([1, 1.2, 0.7, 0.6]);
     expect(narrow.glyph).toBeCloseTo(6.5 * 0.8);
     expect(wide.glyph).toBeCloseTo(6.5 * 1.2);
-    // 四分音符だけの拍は、どちらでも同じ幅
-    expect(wide.beat).toBeCloseTo(narrow.beat);
+    // 拍の割り付けは変わらない：四分音符の九は、どちらでも1拍目の中にある
+    expect(wide.beat).toBeGreaterThan(0);
+    expect(narrow.beat).toBeGreaterThan(0);
     // 広い字は拍に入りきらないので、字の幅より狭い間隔で並ぶ（重なる）
     expect(wide.advance).toBeLessThan(6.5 * 1.2);
-    expect(wide.advance).toBeLessThan(narrow.advance);
+    // 狭い字は重ならずに並ぶ
+    expect(narrow.advance).toBeCloseTo(6.5 * 0.8 + 0.5);
   });
 
   it("どの拍も同じ幅で、音符の多い拍も広がらない", () => {
@@ -233,12 +235,15 @@ describe("レイアウト", () => {
     const heads = ["m4e1", "m4e2", "m4e4", "m4e6"].map((id) => boxOf(page.boxes, id));
     const measure = page.measureBoxes.find((b) => b.measureId === "m4")!;
     const beat = (measure.w - 2 * 1.2) / 4;
-    // 2拍目以降の先頭の字は、拍の左端から始まるか、拍の中央寄せの分だけ右にある
+    // 各拍の先頭の字は、その拍の近くにある（入りきらないかたまりは、隣のすき間へ少しはみ出す）
     heads.forEach((box, i) => {
       const beatLeft = measure.x + 1.2 + beat * i;
-      expect(box.x).toBeGreaterThanOrEqual(beatLeft - 1e-6);
+      expect(box.x).toBeGreaterThanOrEqual(beatLeft - beat * 0.4);
       expect(box.x).toBeLessThan(beatLeft + beat);
     });
+    // 四分音符の九は、1拍目からはみ出さない
+    expect(heads[0]!.x).toBeGreaterThanOrEqual(measure.x + 1.2 - 1e-6);
+    expect(heads[1]!.x).toBeGreaterThanOrEqual(heads[0]!.x + 6.5);
   });
 
   it("拍の中に置く付点は、前の音符の続きとして拍の左から並び、音価線を持たない", () => {
@@ -327,6 +332,61 @@ describe("レイアウト", () => {
     // 指番号の右端（半角1字分）が、2音目の枠の左端（前記号の始まり）より左にある
     expect(sup.x).toBeGreaterThan(first.x);
     expect(sup.x + sup.size * 0.55).toBeLessThanOrEqual(second.x + 0.1);
+  });
+
+  it("拍に入りきらないかたまりは、隣の字までのすき間へ広がる（隣の拍の字は動かない）", () => {
+    const score = loadSample("rokudan-excerpt");
+    // 第6小節：○ 壱（かき爪） 五 壱壱（わり爪の八分2つ）。最後の拍は、前の拍の五との間にすき間がある
+    score.measures = [score.measures[0]!, {
+      id: "x", content: { koto: { events: [
+        { id: "x1", type: "rest", lines: 0, dots: 0 },
+        { id: "x2", type: "note", strings: [{ n: 1 }], lines: 0, dots: 0, prefix: "kaki" },
+        { id: "x3", type: "note", strings: [{ n: 5 }], lines: 0, dots: 0 },
+        { id: "x4", type: "note", strings: [{ n: 1 }], lines: 1, dots: 0, prefix: "wari", sup: ["2"] },
+        { id: "x5", type: "note", strings: [{ n: 1 }], lines: 1, dots: 0, prefix: "wari", sup: ["3"], joinPrev: true },
+      ] } },
+    }];
+    score.spans = [];
+    const page = layoutScore(score, { header: false }).pages[0]!;
+    const measure = page.measureBoxes.find((b) => b.measureId === "x")!;
+    const beat = (measure.w - 2.4) / 4;
+    const beat4 = measure.x + 1.2 + beat * 3;
+    const five = boxOf(page.boxes, "x3");
+    const first = boxOf(page.boxes, "x4");
+    const second = boxOf(page.boxes, "x5");
+    // 2つで拍より広い（7.37mm×2 > 約10.5mm）ので、1つ目は拍の左端より左へ出る
+    expect(first.x).toBeLessThan(beat4 - 0.5);
+    // 五は左へ寄るが、自分の拍からは出ない。わり爪の1つ目とも重ならない
+    expect(five.x).toBeGreaterThanOrEqual(measure.x + 1.2 + beat * 2 - 1e-6);
+    expect(five.x + 7).toBeLessThanOrEqual(first.x + 1e-6);
+    // わり爪の2つは、字と前記号が重ならない（詰まるのは字の間の空きの分まで）
+    expect(second.x - first.x).toBeGreaterThan(7.37 - 0.5);
+    expect(second.x + 7.37).toBeLessThanOrEqual(measure.x + measure.w - 1.2 + 1e-6);
+    expect(layoutScore(score, { header: false }).issues).toEqual([]);
+  });
+
+  it("広げても入りきらないときは、記号のない所から先に重ねる", () => {
+    const score = loadSample("rokudan-excerpt");
+    // 1拍に八分・十六分・十六分。3つ目にだけわり爪を付け、字を大きくして必ず重なるようにする
+    score.measures = [{
+      id: "y", content: { koto: { events: [
+        { id: "y0", type: "note", strings: [{ n: 5 }], lines: 0, dots: 0 },
+        { id: "y1", type: "note", strings: [{ n: 9 }], lines: 1, dots: 0 },
+        { id: "y2", type: "note", strings: [{ n: 8 }], lines: 2, dots: 0, joinPrev: true },
+        { id: "y3", type: "note", strings: [{ n: 9 }], lines: 2, dots: 0, joinPrev: true, prefix: "wari" },
+        { id: "y4", type: "note", strings: [{ n: 5 }], lines: 0, dots: 0 },
+        { id: "y5", type: "note", strings: [{ n: 5 }], lines: 0, dots: 0 },
+      ] } },
+    }];
+    score.spans = [];
+    const page = layoutScore(score, { header: false, noteSize: 9 }).pages[0]!;
+    const [a, b, c] = ["y1", "y2", "y3"].map((id) => boxOf(page.boxes, id));
+    const unit = (lines: number, prefix = 0) => 9 * [1, 0.88, 0.66, 0.56][lines]! + prefix + 0.5;
+    // 重なりは、まず1つ目と2つ目の間（記号なし）で引き受ける。3つ目の前記号の手前は後回し
+    const overlapAB = unit(1) - (b!.x - a!.x);
+    const overlapBC = unit(2) - (c!.x - b!.x);
+    expect(overlapAB).toBeGreaterThan(0.5);
+    expect(overlapAB).toBeGreaterThan(overlapBC + 0.5);
   });
 
   it("1ページの段数を超えたら改ページする", () => {

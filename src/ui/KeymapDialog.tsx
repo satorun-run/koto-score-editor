@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { downloadText } from "../editor/files";
+import { exportTextFile } from "../editor/files";
 import {
   ACTIONS, actionLabel, assignKey, bindingFromEvent, defaultKeymap, findConflict, formatBinding, normalizeKeymap,
   type KeyBinding, type Keymap, type Preset,
@@ -66,7 +66,7 @@ export function KeymapDialog({ keymap, onChange, onClose }: Props) {
         <div className="dialog-tools">
           <button type="button" onClick={() => reset("jis")}>初期値に戻す（JIS配列）</button>
           <button type="button" onClick={() => reset("us")}>初期値に戻す（US配列）</button>
-          <button type="button" onClick={() => downloadText("koto-keymap.json", JSON.stringify(keymap, null, 2), "application/json")}>ファイルに書き出す</button>
+          <button type="button" onClick={() => void exportTextFile("koto-keymap.json", JSON.stringify(keymap, null, 2), "箏譜エディタのキー割り当て")}>ファイルに書き出す</button>
           <button type="button" onClick={() => fileRef.current?.click()}>ファイルから読み込む</button>
           <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ""; }} />
         </div>
