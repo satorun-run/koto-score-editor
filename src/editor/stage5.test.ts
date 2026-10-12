@@ -117,6 +117,19 @@ describe("下書き記法の補助行", () => {
     expect(score.measures[0]!.aux!.hand).toEqual([{ at: "1", text: "▲四ス" }, { at: "2", text: "巾" }]);
   });
 
+  it("破線と押し手の括弧を、始点と終点で書ける（小節をまたいでよい）", () => {
+    const { score, errors } = parseDraft(["---", "四'2 三_.{3 四___ 五___} ▲斗_[ △九_] 八{打", "○} ○ ○ ○"].join("\n"));
+    expect(errors).toEqual([]);
+    expect(score.spans.map((s) => [s.kind, s.from, s.to, s.startText])).toEqual([
+      ["dash", "m1e2", "m1e4", "3"],
+      ["pressBracket", "m1e5", "m1e6", undefined],
+      ["dash", "m1e7", "m2e1", "打"],
+    ]);
+    // 破線の始点の文字は、右肩記号としては持たない
+    expect(score.measures[0]!.content.koto).toMatchObject({ events: [{ sup: ["2"] }, {}, {}, {}, {}, {}, {}] });
+    expect(parseDraft(["---", "四{3 五 六 七"].join("\n")).errors).toHaveLength(1);
+  });
+
   it("形の合わない項目は誤りとして知らせる", () => {
     const { errors } = parseDraft(["---", "七 ○ 七 ○", "節: 六 あ@1"].join("\n"));
     expect(errors).toHaveLength(2);

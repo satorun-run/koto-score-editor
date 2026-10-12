@@ -51,9 +51,29 @@ export function parseDraft(text: string): DraftResult {
   let inBody = !lines.some((l) => l.trim() === "---");
   let pending: Pending = { marks: [] };
   const measureLines: number[] = [];
-  let openSpan: Span | null = null;
+  // 開いているスパン（種類ごとに1つ）
+  const open: Partial<Record<Span["kind"], Span>> = {};
+  const SPAN_NAMES: Record<string, string> = { wave: "波線", dash: "破線", pressBracket: "押し手の括弧" };
 
   const fail = (message: string) => errors.push({ line: lineNo, message });
+
+  const startSpan = (kind: Span["kind"], eventId: string, text: string | undefined) => {
+    if (text === undefined) return;
+    if (open[kind]) fail(`前の${SPAN_NAMES[kind]}が閉じられていません`);
+    const span: Span = { id: "", kind, part: PART, from: eventId, to: eventId };
+    if (text) span.startText = text;
+    open[kind] = span;
+  };
+  const endSpan = (kind: Span["kind"], eventId: string, text: string | undefined) => {
+    if (text === undefined) return;
+    const span = open[kind];
+    if (!span) return fail(`始点のない${SPAN_NAMES[kind]}の終点があります`);
+    span.id = `s${score.spans.length + 1}`;
+    span.to = eventId;
+    if (text) span.endText = text;
+    score.spans.push(span);
+    delete open[kind];
+  };
 
   const parseEvents = (source: string, idPrefix: string): Event[] => {
     const events: Event[] = [];
@@ -62,21 +82,14 @@ export function parseDraft(text: string): DraftResult {
       if (!event) continue;
       events.push(event.event);
       applyJoin(events, event.join);
-      if (event.spanStart !== undefined) {
-        if (openSpan) fail("前の波線が閉じられていません");
-        openSpan = { id: `s${score.spans.length + 1}`, kind: "wave", part: PART, from: event.event.id, to: event.event.id };
-        if (event.spanStart) openSpan.startText = event.spanStart;
-      }
-      if (event.spanEnd !== undefined) {
-        if (!openSpan) fail("始点のない波線の終点があります");
-        else {
-          const span: Span = openSpan;
-          span.to = event.event.id;
-          if (event.spanEnd) span.endText = event.spanEnd;
-          score.spans.push(span);
-          openSpan = null;
-        }
-      }
+      const id = event.event.id;
+      // 同じ音符で終わって始まることがあるので、終点を先に処理する
+      endSpan("wave", id, event.spanEnd);
+      endSpan("dash", id, event.dashEnd);
+      endSpan("pressBracket", id, event.bracketEnd);
+      startSpan("wave", id, event.spanStart);
+      startSpan("dash", id, event.dashStart);
+      startSpan("pressBracket", id, event.bracketStart);
     }
     return events;
   };
@@ -146,7 +159,7 @@ export function parseDraft(text: string): DraftResult {
     measureLines.push(lineNo);
   }
 
-  if (openSpan) errors.push({ line: lineNo, message: "波線が閉じられていません" });
+  for (const kind of Object.keys(open)) errors.push({ line: lineNo, message: `${SPAN_NAMES[kind]}が閉じられていません` });
   if (score.measures.length === 0) errors.push({ line: lineNo, message: "小節がありません" });
   return { score, errors, measureLines };
 }
@@ -230,11 +243,17 @@ interface ParsedToken {
   join: boolean | undefined;
   spanStart?: string;
   spanEnd?: string;
+  /** 破線（指番号などから延びる点線）の始点の文字・終点 */
+  dashStart?: string;
+  dashEnd?: string;
+  /** 押し手の括弧の始点・終点 */
+  bracketStart?: string;
+  bracketEnd?: string;
 }
 
 /**
  * 音符1つ分の記法：
- *   [&|!] [~|%] [(] 絃(+絃…) [_…] [.…] ['右肩]… ["上記号]… [<波線の始点] [>波線の終点]
+ *   [&|!] [~|%] [(] 絃(+絃…) [_…] [.…] ['右肩]… ["上記号]… [<波線の始点] [>波線の終点] [{破線の始点] [}] [[] []]
  * 絃は 壱〜巾、休符は ○、拍の中に置く付点は ●、記号音符は ワ・ス。絃の前の △ ▲ ▲▲ が押し手。
  */
 function parseToken(token: string, id: string, fail: (message: string) => void): ParsedToken | null {
@@ -287,9 +306,13 @@ function parseToken(token: string, id: string, fail: (message: string) => void):
   while (i < chars.length) {
     const mark = chars[i++];
     // 波線の文字は省略できる。直後が別の記号なら、文字なしとして扱う
-    const takeOptional = () => (i < chars.length && !"'\"<>".includes(chars[i]!) ? chars[i++]! : "");
+    const takeOptional = () => (i < chars.length && !"'\"<>{}[]".includes(chars[i]!) ? chars[i++]! : "");
     if (mark === "<") result.spanStart = takeOptional();
     else if (mark === ">") result.spanEnd = takeOptional();
+    else if (mark === "{") result.dashStart = takeOptional();
+    else if (mark === "}") result.dashEnd = "";
+    else if (mark === "[") result.bracketStart = "";
+    else if (mark === "]") result.bracketEnd = "";
     else if (mark === "'" || mark === '"') {
       const value = chars[i++];
       if (value === undefined) {
